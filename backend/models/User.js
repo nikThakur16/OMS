@@ -11,6 +11,8 @@ const userSchema = new mongoose.Schema({
       default: 'Employee',
       required: true,
     },
+    
+
     department: {
       type: String,
       enum: [
@@ -21,6 +23,11 @@ const userSchema = new mongoose.Schema({
       required: true,
     },
   },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId, // This field will store a MongoDB ObjectId
+    required: true,                     // Every user must have an organizationId
+    ref: 'Organization'                 // This tells Mongoose that the ID references a document in the 'organizations' collection
+  }, 
 
   addressDetails: {
     streetAddress1: { type: String, required: true, trim: true },

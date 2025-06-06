@@ -1,5 +1,8 @@
 const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt'); // Import bcrypt for password comparison
+const jwt = require('jsonwebtoken'); // Import jsonwebtoken for token generation
 
 // Allowed enums (must match Mongoose schema and frontend options)
 const allowedRoles = ['Admin', 'Employee', 'HR', 'Manager'];
@@ -7,6 +10,10 @@ const allowedDepartments = [
   'Sales', 'Marketing', 'ReactJS', 'NodeJS', 'Python', 'Java',
   'ReactNative', 'Laravel', 'Other', 'Frontend', 'Backend', 'Fullstack'
 ];
+const DEFAULT_ORGANIZATION_ID = "684131f3c7a84ecf95f105b7";
+
+// !!! IMPORTANT: Use a strong, secret key stored in environment variables !!!
+const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret_key'; // Replace with a strong secret!
 
 // Validation middleware
 const validateRegistration = [
@@ -90,6 +97,7 @@ const register = [
         contactDetails,
         bankDetails,
         password,
+        organizationId: new mongoose.Types.ObjectId(DEFAULT_ORGANIZATION_ID),
       });
 
       // Save the user to the database
@@ -100,6 +108,7 @@ const register = [
         message: 'User registered successfully',
         user: {
           id: user._id,
+          organizationId: user.organizationId,
           personalDetails: {
             firstName: user.personalDetails.firstName,
             lastName: user.personalDetails.lastName,
@@ -120,9 +129,92 @@ const register = [
       });
     } catch (err) {
       console.error('Registration failed during save:', err);
+      if (err.errors) {
+          console.error('Validation Errors:', err.errors);
+      }
       res.status(500).json({ error: 'Server error during registration' });
     }
   },
 ];
 
-module.exports = { register };
+// Controller function to get all users
+const getAllUsers = async (req, res) => {
+  try {
+    // Find all users and select the fields you want to return
+    const users = await User.find({}, '_id personalDetails contactDetails.email');
+    
+    res.status(200).json(users);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Controller function for user login
+const login = async (req, res) => {
+  // Basic validation (you could add more using express-validator)
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Please enter both email and password' });
+  }
+
+  try {
+    // Find the user by email
+    const user = await User.findOne({ 'contactDetails.email': email });
+
+    // Check if user exists
+    if (!user) {
+      // Use a generic error message for security
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Compare the provided password with the stored hashed password
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    // Check if passwords match
+    if (!isMatch) {
+       // Use a generic error message for security
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // User is authenticated! Generate a JWT token.
+    const payload = {
+      user: {
+        id: user._id,
+        role: user.personalDetails.role,
+        organizationId: user.organizationId,
+      },
+    };
+
+    jwt.sign(
+      payload,
+      jwtSecret, // Use your secret key
+      { expiresIn: '1h' }, // Token expiration time (adjust as needed)
+      (err, token) => {
+        if (err) throw err;
+        // Send success response with the token and user details INCLUDING organizationId
+        res.json({
+          message: 'Login successful',
+          token,
+          user: {
+             id: user._id,
+             firstName: user.personalDetails.firstName,
+             lastName: user.personalDetails.lastName,
+             role: user.personalDetails.role,
+             department: user.personalDetails.department,
+             email: user.contactDetails.email,
+             organizationId: user.organizationId,
+             // Add other safe user details you want on the frontend immediately
+          }
+        });
+      }
+    );
+
+  } catch (err) {
+    console.error('Server error during login:', err.message);
+    res.status(500).json({ error: 'Server error during login' });
+  }
+};
+
+module.exports = { register, getAllUsers, login };
