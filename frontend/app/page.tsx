@@ -20,6 +20,7 @@ const LoginPage = () => {
   // data: the response data if the mutation was successful
   const [login, { isLoading, error, data }] = useLoginMutation();
 
+
   // Get the dispatch function (if using an auth slice)
   // const dispatch = useDispatch();
 
@@ -46,7 +47,9 @@ const LoginPage = () => {
       console.log('Login successful:', result);
 
       // 1. Store the token (e.g., in local storage)
-      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', result.user ? JSON.stringify(result.user) : '');
+      localStorage.setItem('role', result.user?.role || ''); // Store the role for later use
+  
       dispatch(setCredentials(result));
 
       // 2. Dispatch an action to update Redux auth state (if using an auth slice)
@@ -56,9 +59,9 @@ const LoginPage = () => {
       // You might redirect to a dashboard or organization-specific page
       // Example: Redirect to /admin/dashboard or based on organizationId
        if (result.user?.organizationId) {
-           router.push(`/admin/dashboard?org=${result.user.organizationId}`);
+           router.push(`/${result?.user?.role}/dashboard?org=${result.user.organizationId}`);
        } else {
-           router.push('/admin/dashboard'); // Default redirect
+           router.push(`/${result?.user?.role}/dashboard`); // Default redirect
        }
 
 

@@ -6,7 +6,7 @@ import { LoginData,LoginResponseData } from '@/types/auth/page';
 
 export const api = createApi({
   reducerPath: 'api',
-  baseQuery: fetchBaseQuery({ baseUrl: process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL }), // Change if needed
+  baseQuery: fetchBaseQuery({ baseUrl: process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL , credentials: 'include'}), // Change if needed
   tagTypes: ['Users'],
   endpoints: (builder) => ({
     // GET users

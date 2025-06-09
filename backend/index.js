@@ -4,6 +4,9 @@ const mongoose = require('mongoose');  // add mongoose import
 const cors = require('cors'); // Import the cors middleware
 const app = express();
 const authRoutes = require('./routes/authRoutes');
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
 
 const PORT = process.env.PORT || 5000;
 
