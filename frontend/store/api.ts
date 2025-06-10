@@ -2,6 +2,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { RegistrationData } from '@/types/register/page';
 import {User} from '@/types/users/page';
 import { LoginData,LoginResponseData } from '@/types/auth/page';
+import { logout } from '@/reducers/auth/LoginSlice';
 
 
 export const api = createApi({
@@ -31,10 +32,20 @@ export const api = createApi({
         method: 'POST',
         body: loginData,
       }),
-    })
+    }),
+    logout: builder.mutation<{ message: string }, void>({
+      query: () => ({
+        url: '/api/auth/logout',
+        method: 'POST',
+      }),
+    }),
+
+
+   
+
 
           
   }),
 });
 
-export const { useGetUsersQuery, useRegisterMutation ,useLoginMutation } = api;
+export const { useGetUsersQuery, useRegisterMutation ,useLoginMutation ,useLogoutMutation } = api;

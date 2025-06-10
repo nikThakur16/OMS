@@ -50,7 +50,7 @@ const filteredUserList = Array.isArray(users)
         </div>
         <table className="w-full">
             <thead className=" border-b border-zinc-100">
-                <tr className="w-full text-[16px] tracking-wider">
+                <tr className="w-full text-[14px] tracking-wider">
                   <th className="px-4 py-2 font-bold  text-center  tracking-wider">Profile</th>
                   <th className="px-4 py-2  font-bold text-left  tracking-wider ">Name</th>
                   <th className="px-4 py-2 font-bold  text-center  tracking-wider">Role</th>

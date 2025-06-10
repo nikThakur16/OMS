@@ -215,6 +215,21 @@ const getAllUsers = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+const logout= async(req,res)=>{
+  try{
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+    res.status(200).json({ message: 'Logged out successfully' });
+  
+  } catch(err){
+    console.error("Error during logout:", err);
+     res.status(500).json({ error: "Server error during logout" });
+}
+};
 
 // Controller function for user login
 const login = async (req, res) => {
@@ -272,7 +287,7 @@ const login = async (req, res) => {
           httpOnly: true, // ✅ Not accessible to JavaScript
           secure: process.env.NODE_ENV === "prodution", // ✅ Only over HTTPS in prod
           sameSite: "strict", // ✅ Prevents CSRF
-          maxAge: 60 * 60 * 1000, // ✅ 1 hour in milliseconds
+          maxAge: 10* 60 * 60 * 1000, // ✅ 1 hour in milliseconds
           path: "/", // ✅ Makes cookie available throughout the app
         });
         // Send success response with the token and user details INCLUDING organizationId
@@ -299,4 +314,4 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, getAllUsers, login };
+module.exports = { register, getAllUsers, login, logout };

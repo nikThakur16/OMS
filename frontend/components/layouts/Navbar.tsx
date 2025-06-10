@@ -3,20 +3,29 @@ import { useEffect, useState } from "react";
 import { setSearchQuery } from "@/reducers/search/SearchSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setCredentials, logout, setUserData } from "@/reducers/auth/LoginSlice"; // Adjust the import path as necessary
+
 import _ from "lodash";
 import { useRouter } from "next/navigation"; // Adjust the import path as necessary
+import { useLogoutMutation } from "@/store/api";
 
 const Navbar = () => {
   const dispatch = useAppDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   let loggedUser =useAppSelector((state)=>state?.login?.user);
   const router = useRouter();
+  const [triggerLogout, { isLoading, error}] = useLogoutMutation();
 
   console.log("Logged User:", loggedUser);
 
-  const handleLogout=()=>{
-    dispatch(logout());
-    router.push('/'); // Redirect to login page after logout 
+  const handleLogout= async ()=>{
+    try {
+      await triggerLogout().unwrap();
+      dispatch(logout());
+      router.push('/'); // Redirect to login page after logout 
+    } catch (err) {
+      console.error("Failed to logout:", err);
+      // Handle logout error (e.g., show a toast message)
+    }
   }
 
   useEffect(() => {
