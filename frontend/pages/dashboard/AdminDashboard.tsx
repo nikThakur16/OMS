@@ -4,7 +4,7 @@ import Attendance from "@/pages/attendance/page"
 
 const page = () => {
   return (
-    <div className="mt-10 flex flex-col gap-4  ">
+    <div className="mt-10 max-w-[76vw] flex flex-col gap-4  ">
       <div className="flex gap-8">
         <EmployeeDtsCard />
         <EmployeeDtsCard />

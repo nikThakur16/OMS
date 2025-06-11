@@ -14,10 +14,12 @@
     "formik": "^2.4.6",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
+    "lottie-react": "^2.4.1",
     "next": "15.3.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-redux": "^9.2.0",
+    "react-tsparticles": "^2.12.2",
     "recharts": "^2.15.3",
     "yup": "^1.6.1"
   },

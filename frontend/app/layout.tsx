@@ -29,7 +29,7 @@ export default function RootLayout({
       />
       <body
         cz-shortcut-listen="true"
-        className={`${geistSans.variable} antialiased bg-[#D3E7F0]`}
+        className={`${geistSans.variable} antialiased bg-[#D3E7F0] `}
       >
        <Providers>{children}</Providers>
       </body>

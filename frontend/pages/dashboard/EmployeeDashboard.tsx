@@ -1,9 +1,13 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import{  useCheckInMutation, useCheckOutMutation,useGetEmployeeAttendanceByIdQuery } from '@/store/api';
 
 const EmployeeDashboard = () => {
+    
     // --- Mock User Data & Attendance State ---
+    const [triggerCheckIn ,{isLoading:isCheckedIn }] = useCheckInMutation();
+    const [triggerCheckOut ,{isLoading:isCheckedOut }] = useCheckOutMutation();
     const [userAttendance, setUserAttendance] = useState({
         name: "Vidushi Sharma",
         role: "React js Developer",
@@ -29,32 +33,71 @@ const EmployeeDashboard = () => {
         }
     });
 
+const user=localStorage.getItem('user');
+const loggedInEmployeeId= user ? JSON.parse(user)?.id : null;
+const loggedInEmployee= user ? JSON.parse(user) : null;
+const getTodayDateParam = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, '0'); // Months are 0-indexed
+    const day = today.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+const { 
+    data: employeeAttendanceRecords, // This is where it's defined and gets its value
+    isLoading: isFetchingAttendance, 
+    error: fetchAttendanceError,
+    refetch: refetchEmployeeAttendance 
+  } = useGetEmployeeAttendanceByIdQuery({ employeeId: loggedInEmployeeId, date: getTodayDateParam() });
+
+
+ 
+
+
     const [isLoading, setIsLoading] = useState(false);
 
     // --- Handlers for Check In/Out Actions ---
-    const handleCheckIn = () => {
+    const handleCheckIn = async () => {
+      try{
+
         setIsLoading(true);
-        setTimeout(() => {
-            const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-            setUserAttendance(prev => ({
-                ...prev,
-                isCheckedIn: true,
-                checkInTime: currentTime,
-                todayStatus: "Checked In",
-                todayWorkingHours: "00hr 00min",
-                todayBreakTime: "00min",
-                todayOvertime: "00hr 00min",
-                checkOutTime: null,
-            }));
-            setIsLoading(false);
-            console.log(`User checked in at ${currentTime}`);
-        }, 1000);
+
+        const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        await triggerCheckIn({checkInTime: currentTime}).unwrap();
+        
+        setUserAttendance(prev => ({
+            ...prev,
+            isCheckedIn: true,
+            checkInTime: currentTime,
+            todayStatus: "Checked In",
+            todayWorkingHours: "00hr 00min",
+            todayBreakTime: "00min",
+            todayOvertime: "00hr 00min",
+            checkOutTime: null,
+        }));
+        setIsLoading(false);
+        console.log(`User checked in at ${currentTime}`);
+      } catch (error) {
+        console.error("Failed to check in:", error);
+        // TODO: Display an error message to the user here
+    }
+
+       
     };
 
-    const handleCheckOut = () => {
-        setIsLoading(true);
-        setTimeout(() => {
+    const handleCheckOut = async () => {
+        try{
+            setIsLoading(true);
+       
             const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        
+         await triggerCheckOut({
+                checkOutTime: currentTime,
+                workingHours: userAttendance.todayWorkingHours,
+                breakTime: userAttendance.todayBreakTime,
+                overtime: userAttendance.todayOvertime
+            }).unwrap();
+     
             setUserAttendance(prev => ({
                 ...prev,
                 isCheckedIn: false,
@@ -66,7 +109,10 @@ const EmployeeDashboard = () => {
             }));
             setIsLoading(false);
             console.log(`User checked out at ${currentTime}`);
-        }, 1000);
+        } catch{
+            console.error("Failed to check out:", Error);
+        }
+     
     };
 
     const getTodayDate = () => {
@@ -111,6 +157,9 @@ const EmployeeDashboard = () => {
         { id: 4, name: "Wasif Omee", avatar: "/images/cat.jpg", status: "away" },
     ];
 
+    
+ 
+    console.log("=============",employeeAttendanceRecords)
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme('spacing.6'))] p-6 bg-gray-50">
@@ -119,73 +168,68 @@ const EmployeeDashboard = () => {
       {/* Top Row: Hero Profile Card & Smaller Status Cards */}
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 items-stretch'>
         
-        {/* Main Hero Profile Card - Rebuilt for Professionalism */}
-        <div className='bg-white rounded-xl shadow-xl col-span-1 md:col-span-2 lg:col-span-2 overflow-hidden flex flex-col transform hover:scale-[1.005] transition-transform duration-300 relative'>
-            {/* Background Gradient / Image (Optional, can replace with an actual image) */}
-            <div className='absolute inset-0 bg-gradient-to-br from-[#034F75] to-blue-800 opacity-90 rounded-xl'></div>
-            
-            {/* Content Container */}
-            <div className='relative z-10 p-8 flex flex-col justify-between h-full'>
-                {/* Top section: Avatar, Name, Role, and Date */}
-                <div className='flex items-center justify-between mb-8'>
-                    <div className='flex items-center'>
-                        <div className='relative mr-6 transform transition-transform hover:scale-105 duration-300 ease-out'>
-                            <img 
-                                src={userAttendance.avatar} 
-                                alt="User Avatar" 
-                                className="rounded-full w-28 h-28 object-cover border-4 border-white shadow-lg" 
-                            />
-                            {/* Online Status Indicator */}
-                            <span className='absolute bottom-1 right-1 w-6 h-6 bg-cyan-400 rounded-full border-3 border-white animate-pulse-slow origin-center'></span>
-                        </div>
-                        <div>
-                            <h2 className='font-bold text-4xl text-white mb-1'>{userAttendance.name}</h2>
-                            <p className='text-xl text-blue-100 opacity-90'>{userAttendance.role}</p>
-                        </div>
+        {/* Main Hero Profile Card - Wider and more prominent */}
+        <div className='bg-white rounded-xl shadow-xl col-span-1 md:col-span-2 lg:col-span-2 overflow-hidden flex flex-col transform hover:scale-[1.005] transition-transform duration-300'>
+            {/* Top section with gradient, avatar, and core info */}
+            <div className='relative p-8 flex items-center justify-between  bg-[#034F75] text-white'> 
+                <div className='flex items-center'>
+                    <div className='relative mr-4 transform transition-transform hover:scale-105 duration-300 ease-out'>
+                        <img 
+                            src={userAttendance.avatar} 
+                            alt="User Avatar" 
+                            className="rounded-full w-28 h-28 object-cover border-4 border-white shadow-lg" 
+                        />
+                        {/* Online Status Indicator */}
+                        <span className='absolute bottom-1 right-1 w-6 h-6 bg-cyan-400 rounded-full border-3 border-white animate-pulse-slow origin-center'></span>
                     </div>
-                    <div className='text-right'>
-                        <p className='text-base text-blue-200 italic'>Today is</p>
-                        <p className='font-semibold text-2xl text-white'>{getTodayDate()}</p>
+                    <div>
+                        <h2 className='font-bold text-3xl mb-1'>{userAttendance.name}</h2>
+                        <p className='text-lg opacity-90'>{userAttendance.role}</p>
                     </div>
                 </div>
+                <div className='text-right'>
+                    <p className='text-base text-gray-200 italic'>Today is</p>
+                    <p className='font-semibold text-2xl'>{getTodayDate()}</p>
+                </div>
+            </div>
 
-                {/* Motivational Quote */}
-                <p className='text-lg text-white mb-8 text-center italic leading-relaxed'>
-                    "Innovating solutions and driving success. Continuously learning and growing to achieve excellence and make a positive impact."
+            {/* Bottom section with additional info and button */}
+            <div className='flex flex-col flex-grow p-6 bg-white z-10 relative'>
+                <p className='text-base text-gray-600 mb-6 text-center italic'>
+                    "Innovating solutions and driving success. Continuously learning and growing to achieve excellence."
                 </p>
 
-                {/* Additional Info Grid for employee details - more subtle, integrated look */}
-                <div className='grid grid-cols-3 gap-4 w-full mx-auto mb-8'>
-                    <div className='flex flex-col items-center p-3 bg-white bg-opacity-20 rounded-lg text-white shadow-sm transition-transform hover:scale-105 duration-200'>
-                        <p className='text-xs opacity-80'>Employee ID</p>
-                        <p className='font-semibold text-base'>{userAttendance.employeeId}</p>
+                {/* Additional Info Grid for employee details */}
+                <div className='grid grid-cols-2 gap-4 w-full mx-auto mb-6'>
+                    <div className='text-center p-4 bg-blue-50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200'>
+                        <p className='text-xs text-gray-600'>Employee ID</p>
+                        <p className='font-semibold text-lg text-[#034F75]'>{userAttendance.employeeId}</p>
                     </div>
-                    <div className='flex flex-col items-center p-3 bg-white bg-opacity-20 rounded-lg text-white shadow-sm transition-transform hover:scale-105 duration-200'>
-                        <p className='text-xs opacity-80'>Department</p>
-                        <p className='font-semibold text-base'>{userAttendance.department}</p>
+                    <div className='text-center p-4 bg-blue-50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200'>
+                        <p className='text-xs text-gray-600'>Department</p>
+                        <p className='font-semibold text-lg text-[#034F75]'>{userAttendance.department}</p>
                     </div>
-                    <div className='flex flex-col items-center p-3 bg-white bg-opacity-20 rounded-lg text-white shadow-sm transition-transform hover:scale-105 duration-200'>
-                        <p className='text-xs opacity-80'>Team</p>
-                        <p className='font-semibold text-base'>{userAttendance.team}</p>
+                    <div className='text-center p-4 bg-blue-50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 col-span-2'>
+                        <p className='text-xs text-gray-600'>Team Assignment</p>
+                        <p className='font-semibold text-lg text-[#034F75]'>{userAttendance.team}</p>
                     </div>
                 </div>
 
-                {/* Performance Meter - redesigned for a sleek look */}
+                {/* Performance Meter */}
                 <div className='w-full mx-auto mb-8'>
                     <div className='flex justify-between items-center mb-2'>
-                        <span className='text-sm font-medium text-blue-100'>Overall Performance</span>
-                        <span className='text-lg font-bold text-cyan-200'>{userAttendance.performanceScore}%</span>
+                        <span className='text-sm font-medium text-gray-700'>Overall Performance</span>
+                        <span className='text-lg font-bold text-cyan-600'>{userAttendance.performanceScore}%</span>
                     </div>
-                    <div className='w-full bg-blue-700 rounded-full h-3'>
+                    <div className='w-full bg-gray-200 rounded-full h-3'>
                         <div 
-                            className='bg-cyan-400 h-3 rounded-full transition-all duration-700 ease-out' 
+                            className='bg-cyan-500 h-3 rounded-full transition-all duration-700 ease-out' 
                             style={{ width: `${userAttendance.performanceScore}%` }}
                         ></div>
                     </div>
                 </div>
 
-                {/* Call to Action Button */}
-                <button className='w-full bg-white text-[#034F75] px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-colors duration-300 ease-in-out transform hover:-translate-y-1 shadow-lg active:scale-95'>
+                <button className='w-full bg-[#034F75] text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors duration-300 ease-in-out transform hover:-translate-y-1 shadow-lg active:scale-95'>
                     Access Full Profile
                 </button>
             </div>
@@ -195,7 +239,7 @@ const EmployeeDashboard = () => {
         <div className='col-span-1 md:col-span-1 lg:col-span-1 flex flex-col gap-6'>
             {/* Check In/Check Out Action Card */}
             <div className={`rounded-xl shadow-md p-6 flex flex-col justify-center items-center text-center flex-grow transition-all duration-300 ease-in-out transform hover:scale-[1.02] active:scale-[0.98]
-                            ${userAttendance.isCheckedIn ? 'bg-gradient-to-br from-cyan-400 to-cyan-600' : 'bg-gradient-to-br from-blue-800 to-indigo-900'} text-white`}>
+                            ${userAttendance.isCheckedIn ? 'bg-[#034F75]' : ' bg-[#034F75]'} text-white`}>
                 <div className='w-14 h-14 bg-white rounded-full flex items-center justify-center mb-4 transform transition-transform hover:rotate-12 duration-300'>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-[#034F75]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h8m-8 4h8m-6 4h4m-4 0v-2m4 0v2m0 0a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v14a2 2 0 01-2 2z" />
@@ -241,40 +285,46 @@ const EmployeeDashboard = () => {
 
       {/* Mid-Row: My Quick Stats & Team Connectivity */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6'>
-          {/* My Quick Stats Card - Refined and concise */}
+          {/* My Quick Stats Card - Refined and concise, similar to "My Courses" */}
           <div className='bg-white rounded-xl shadow-md p-6 transform hover:scale-[1.005] transition-transform duration-300'>
-              <h3 className='font-bold text-xl mb-4 text-[#034F75]'>My Quick Stats</h3>
-              <div className='grid grid-cols-3 gap-4'> 
+              <h3 className='font-bold text-xl mb-4 text-gray-800'>My Quick Stats</h3>
+              <div className='space-y-4'> 
                   {/* Unread Messages */}
-                  <div className='flex flex-col items-center justify-center p-3 bg-blue-50 rounded-lg transform transition-transform hover:scale-105 duration-200'>
-                      <div className='w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center mb-2'> 
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#034F75]" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" /><path d="M14 8H4a2 2 0 00-2 2v1a2 2 0 002 2h12a2 2 0 002-2v-1a2 2 0 00-2-2h-2zM2 13a2 2 0 002 2h12a2 2 0 002-2v1a2 2 0 01-2 2H4a2 2 0 01-2-2v-1z" /></svg>
+                  <div className='flex items-center space-x-4 p-3 bg-blue-50 rounded-lg transform transition-transform hover:scale-105 duration-200'>
+                      <div className='w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0'> 
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-700" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" /><path d="M14 8H4a2 2 0 00-2 2v1a2 2 0 002 2h12a2 2 0 002-2v-1a2 2 0 00-2-2h-2zM2 13a2 2 0 002 2h12a2 2 0 002-2v1a2 2 0 01-2 2H4a2 2 0 01-2-2v-1z" /></svg>
                       </div>
-                      <p className='text-xl font-bold text-[#034F75]'>{quickStats.unreadMessages}</p> 
-                      <p className='text-xs text-gray-600 text-center'>Messages</p> 
+                      <div>
+                        <p className='font-semibold text-lg text-gray-800'>{quickStats.unreadMessages} New Messages</p> 
+                        <p className='text-sm text-gray-500'>Check your inbox for updates.</p> 
+                      </div>
                   </div>
                   {/* Tasks Due Soon */}
-                  <div className='flex flex-col items-center justify-center p-3 bg-yellow-50 rounded-lg transform transition-transform hover:scale-105 duration-200'>
-                      <div className='w-9 h-9 bg-yellow-100 rounded-full flex items-center justify-center mb-2'>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-700" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>
+                  <div className='flex items-center space-x-4 p-3 bg-amber-50 rounded-lg transform transition-transform hover:scale-105 duration-200'>
+                      <div className='w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0'>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-700" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>
                       </div>
-                      <p className='text-xl font-bold text-yellow-700'>{quickStats.tasksDueSoon}</p>
-                      <p className='text-xs text-gray-600 text-center'>Tasks Due</p>
+                      <div>
+                        <p className='font-semibold text-lg text-gray-800'>{quickStats.tasksDueSoon} Tasks Due Soon</p>
+                        <p className='text-sm text-gray-500'>Prioritize your upcoming assignments.</p>
+                      </div>
                   </div>
                   {/* Feedback Received */}
-                  <div className='flex flex-col items-center justify-center p-3 bg-cyan-50 rounded-lg transform transition-transform hover:scale-105 duration-200'>
-                      <div className='w-9 h-9 bg-cyan-100 rounded-full flex items-center justify-center mb-2'>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-700" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 13.5V10A8 8 0 002 10v3.5a1.5 1.5 0 003 0V12h.5a.5.5 0 01.5.5V13a.5.5 0 00.5.5h.5a.5.5 0 00.5-.5v-.5h.5a.5.5 0 01.5.5V13a.5.5 0 00.5.5h.5a.5.5 0 00.5-.5v-.5h.5a.5.5 0 01.5.5V13.5a1.5 1.5 0 003 0zM12 2.25A1.75 1.75 0 0010.25 4h-4.5A1.75 1.75 0 004 2.25v-.25a.75.75 0 011.5 0v.25h9v-.25a.75.75 0 011.5 0v.25z" clipRule="evenodd" /></svg>
+                  <div className='flex items-center space-x-4 p-3 bg-indigo-50 rounded-lg transform transition-transform hover:scale-105 duration-200'>
+                      <div className='w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0'>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-700" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 13.5V10A8 8 0 002 10v3.5a1.5 1.5 0 003 0V12h.5a.5.5 0 01.5.5V13a.5.5 0 00.5.5h.5a.5.5 0 00.5-.5v-.5h.5a.5.5 0 01.5.5V13.5a1.5 1.5 0 003 0zM12 2.25A1.75 1.75 0 0010.25 4h-4.5A1.75 1.75 0 004 2.25v-.25a.75.75 0 011.5 0v.25h9v-.25a.75.75 0 011.5 0v.25z" clipRule="evenodd" /></svg>
                       </div>
-                      <p className='text-xl font-bold text-cyan-700'>{quickStats.feedbackReceived}</p>
-                      <p className='text-xs text-gray-600 text-center'>Feedback</p>
+                      <div>
+                        <p className='font-semibold text-lg text-gray-800'>{quickStats.feedbackReceived} New Feedback</p>
+                        <p className='text-sm text-gray-500'>Review your recent performance feedback.</p>
+                      </div>
                   </div>
               </div>
           </div>
 
           {/* Team Connectivity Card */}
           <div className='bg-white rounded-xl shadow-md p-6 transform hover:scale-[1.005] transition-transform duration-300'>
-              <h3 className='font-bold text-xl mb-4 text-[#034F75]'>Team Connectivity</h3>
+              <h3 className='font-bold text-xl mb-4 text-gray-800'>Team Connectivity</h3>
               <div className='space-y-4 max-h-64 overflow-y-auto scrollbar-hide'>
                   {teamMembers.map(member => (
                       <div key={member.id} className='flex items-center space-x-4 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0'>
@@ -288,7 +338,7 @@ const EmployeeDashboard = () => {
                                   <span className='absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse'></span>
                               )}
                               {member.status === 'away' && (
-                                  <span className='absolute bottom-0 right-0 w-3 h-3 bg-orange-500 rounded-full border-2 border-white'></span>
+                                  <span className='absolute bottom-0 right-0 w-3 h-3 bg-amber-500 rounded-full border-2 border-white'></span>
                               )}
                               {member.status === 'offline' && (
                                   <span className='absolute bottom-0 right-0 w-3 h-3 bg-gray-400 rounded-full border-2 border-white'></span>
@@ -298,7 +348,7 @@ const EmployeeDashboard = () => {
                               <p className='font-semibold text-gray-800'>{member.name}</p>
                               <p className='text-sm text-gray-500 capitalize'>{member.status}</p>
                           </div>
-                          <button className='ml-auto bg-blue-100 text-[#034F75] text-xs px-3 py-1 rounded-md hover:bg-blue-200 transition-colors duration-200'>
+                          <button className='ml-auto bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-md hover:bg-blue-200 transition-colors duration-200'>
                               Message
                           </button>
                       </div>

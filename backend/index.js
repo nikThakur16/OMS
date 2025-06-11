@@ -4,6 +4,7 @@ const mongoose = require('mongoose');  // add mongoose import
 const cors = require('cors'); // Import the cors middleware
 const app = express();
 const authRoutes = require('./routes/authRoutes');
+const attendanceRoutes = require('./routes/attendanceRoutes');
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
 
@@ -23,6 +24,7 @@ app.use(cors(corsOptions)); // Use the cors middleware with your options
 // Middleware to parse JSON
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
