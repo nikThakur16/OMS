@@ -16,19 +16,17 @@ export interface AttendanceRecord {
 }
 
 // Define the payload for check-in mutation
-export interface CheckInPayload {
-    checkInTime: string;
-    // employeeId is handled by backend middleware (req.user.id), no need to send from frontend body
+export interface UpdateAttendancePayload {
+    type: 'checkIn' | 'checkOut' | 'takeBreak' | 'resumeWork';
+    checkInTime?: string;
+    checkOutTime?: string;
+    workingHours?: string;
+    breakTime?: string;
+    overtime?: string;
+    // Add other fields as necessary depending on what your backend expects for each action
+    // e.g., employeeId: string; if not derived from auth token
 }
 
-// Define the payload for check-out mutation
-export interface CheckOutPayload {
-    checkOutTime: string;
-    workingHours: string;
-    breakTime: string;
-    overtime: string;
-    // employeeId is handled by backend middleware
-}
 
 // Define the response structure for check-in/check-out mutations
 export interface AttendanceMutationResponse {

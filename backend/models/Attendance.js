@@ -26,8 +26,8 @@ const attendanceSchema = new mongoose.Schema({
     },
     status: { // e.g., 'Present', 'Absent', 'Half Day', 'Checked In', 'Checked Out'
         type: String,
-        enum: ['Present', 'Absent', 'Half Day', 'Checked In', 'Checked Out'],
-        default: 'Present'
+        enum: ['Not Checked In', 'Checked In', 'On Break', 'Checked Out'], // Updated enum values
+        default: 'Not Checked In' // Default status
     },
     workingHours: {
         type: String,
@@ -40,7 +40,14 @@ const attendanceSchema = new mongoose.Schema({
     overtime: {
         type: String,
         default: '00hr 00min'
-    }
+    },
+    totalBreakDurationInSeconds: { // New field to store total break duration in seconds
+        type: Number,
+        default: 0,
+    },
+    currentBreakStartTime: { // New field to store the timestamp when a break started
+        type: Date, // Store as Date object for accurate time calculation
+    },
 }, { timestamps: true });
 
 // Add a unique index to prevent duplicate attendance records for the same employee on the same day

@@ -23,7 +23,7 @@ const Navbar = () => {
       dispatch(logout());
       router.push('/'); // Redirect to login page after logout 
     } catch (err) {
-      console.error("Failed to logout:", err);
+      console.error("Failed to logout:", JSON.stringify(err, null, 2)); // Stringify the error object for full details
       // Handle logout error (e.g., show a toast message)
     }
   }
