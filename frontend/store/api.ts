@@ -54,6 +54,10 @@ export const api = createApi({
         method: "POST",
       }),
     }),
+    getUserById:builder.query<User[],string>({
+      query: (id) => `api/users/${id}`,
+      providesTags: (result, error, id) => [{ type: "Users", id }],
+    }),
     updateAttendance: builder.mutation<
       AttendanceMutationResponse,
       UpdateAttendancePayload
@@ -109,4 +113,5 @@ export const {
   useUpdateAttendanceMutation,
   useGetAllAttendanceQuery,
   useGetEmployeeAttendanceByIdQuery,
+  useGetUserByIdQuery,
 } = api;

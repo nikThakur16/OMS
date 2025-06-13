@@ -1,6 +1,6 @@
  // Example type definition - adjust based on your actual backend response
  export interface User {
-    id: string; // Assuming each user has an ID
+    _id: string; // Assuming each user has an ID
     personalDetails: {
       firstName: string;
       lastName: string;
@@ -17,3 +17,4 @@
     joinDate?: string; // Join date, optional
     // Add any other top-level user properties
   }
+  

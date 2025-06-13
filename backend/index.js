@@ -6,6 +6,7 @@ const app = express();
 const authRoutes = require('./routes/authRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const cookieParser = require('cookie-parser');
+const userRoutes = require('./routes/userRoutes'); // Import your user routes
 app.use(cookieParser());
 
 
@@ -25,6 +26,7 @@ app.use(cors(corsOptions)); // Use the cors middleware with your options
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/users', userRoutes); // Use the user routes
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)

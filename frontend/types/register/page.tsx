@@ -49,7 +49,7 @@ export interface RegistrationData {
 
 
 // 2. Define initial values with the same nested structure
-// This structure already matches, just ensure the types align
+// This structure  matches, just ensure the types align
 export const initialValues: RegistrationData = {
   personalDetails: {
     firstName: '',

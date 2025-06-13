@@ -26,7 +26,7 @@ const attendanceSchema = new mongoose.Schema({
     },
     status: { // e.g., 'Present', 'Absent', 'Half Day', 'Checked In', 'Checked Out'
         type: String,
-        enum: ['Not Checked In', 'Checked In', 'On Break', 'Checked Out'], // Updated enum values
+        enum: ['Not Checked In', 'Checked In', 'onBreak', 'Checked Out'], // Updated enum values
         default: 'Not Checked In' // Default status
     },
     workingHours: {
@@ -41,7 +41,7 @@ const attendanceSchema = new mongoose.Schema({
         type: String,
         default: '00hr 00min'
     },
-    totalBreakDurationInSeconds: { // New field to store total break duration in seconds
+    totalBreakTime: { // New field to store total break duration in seconds
         type: Number,
         default: 0,
     },
