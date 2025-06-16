@@ -2,7 +2,7 @@
 import React, { useState } from 'react'; // useEffect might not be needed if handling response in handleSubmit
 import { useLoginMutation } from '@/store/api';
 import { useAppDispatch } from '@/store/hooks'; // Use your typed hook
-import { setCredentials } from '@/reducers/auth/LoginSlice';
+import { setCredentials,setUserData } from '@/reducers/auth/LoginSlice';
 import { useRouter } from 'next/navigation';
 import { LoginData } from '@/types/auth/page';
 
@@ -52,6 +52,7 @@ const LoginPage = () => {
       localStorage.setItem('token', result.token);
   
       dispatch(setCredentials(result));
+      dispatch(setUserData(result.user)); // Store user data in Redux state
 
       // 2. Dispatch an action to update Redux auth state (if using an auth slice)
       // dispatch(setCredentials(result)); // Pass the user data and token

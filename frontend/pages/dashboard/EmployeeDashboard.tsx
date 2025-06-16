@@ -1,7 +1,13 @@
 "use client";
 
-import dayjs from '@/utils/dayjs';
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 import React, { useEffect, useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   LineChart,
   Line,
@@ -12,30 +18,34 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import {
- useUpdateAttendanceMutation,
+  useUpdateAttendanceMutation,
   useGetEmployeeAttendanceByIdQuery,
   useGetUserByIdQuery,
+  useGetEmployeeDashboardQuery,
 } from "@/store/api";
-import { set } from 'lodash';
-
-
+import { set } from "lodash";
 
 const EmployeeDashboard = () => {
-
-  const user = localStorage.getItem("user");
-  const loggedInEmployeeId = user ? JSON.parse(user)?.id : null;
+  // const user = localStorage.getItem("user");
+  // const loggedInEmployeeId = user ? JSON.parse(user)?.id : null;
   const [breakTime, setBreakTime] = useState<any>(null);
-const [backTime, setBackTime] = useState<any>(null);
+  const loggedUser = useAppSelector((state) => state?.login?.user);
+  console.log("=============================", loggedUser);
+  const [backTime, setBackTime] = useState<any>(null);
   // --- Mock User Data & Attendance State ---
-  const [triggerUpdateAttendance, { isLoading: isUpdatingAttendance }] = useUpdateAttendanceMutation(); 
-  
+  const [triggerUpdateAttendance, { isLoading: isUpdatingAttendance }] =
+    useUpdateAttendanceMutation();
+
   const [attendanceStatus, setAttendanceStatus] = useState<
     "notCheckedIn" | "checkedIn" | "onBreak" | "checkedOut"
   >(() => (localStorage.getItem("status") as any) ?? "notCheckedIn");
+  const [employeeData, setEmployeeData] = useState<any>(null); // State to hold employee data
+
+
   const [userAttendance, setUserAttendance] = useState({
     name: "Loading...", // Default for display
     role: "N/A", // Default for display
-    avatar: "/images/placeholder.jpg", // A default placeholder image
+    avatar: "/images/cat.jpg", // A default placeholder image
     employeeId: "N/A",
     department: "N/A",
     team: "N/A",
@@ -50,17 +60,13 @@ const [backTime, setBackTime] = useState<any>(null);
     weeklyHours: "00hr 00min",
     monthlyAttendanceRate: "0%",
     leaveBalance: {
-        annual: 0,
-        sick: 0,
-        casual: 0,
-        pendingRequests: 0
-    }
-});
+      annual: 0,
+      sick: 0,
+      casual: 0,
+      pendingRequests: 0,
+    },
+  });
 
-
-
-
-  const loggedInEmployee = user ? JSON.parse(user) : null;
   const getTodayDateParam = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -68,37 +74,57 @@ const [backTime, setBackTime] = useState<any>(null);
     const day = today.getDate().toString().padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
+  const loggedInEmployeeId = loggedUser?.id || null; // Get the logged-in employee ID from the user state
   const {
-    data: employeeAttendanceRecords, 
+    data: employeeAttendanceRecords,
     isLoading: isFetchingAttendance,
     error: fetchAttendanceError,
     refetch: refetchEmployeeAttendance,
   } = useGetEmployeeAttendanceByIdQuery({
-    employeeId: loggedInEmployeeId,
+    employeeId: loggedUser?.id,
     date: getTodayDateParam(),
   });
 
-  // const { data: EmployeeData,refetch:refetchEmployeeData } = useGetUserByIdQuery(loggedInEmployeeId!, { // Add '!' for non-null assertion
-  //   skip: !loggedInEmployeeId // Skip the query if loggedInEmployeeId is null or undefined
-  // }); 
-  // console.log("==============",employeeAttendanceRecords,getTodayDateParam(),loggedInEmployeeId);
+
+  const { data: EmployeeeData, error, isLoading } = useGetEmployeeDashboardQuery();
+  const personalDetails = EmployeeeData?.user?.personalDetails || {};
+  const AttendanceData=EmployeeeData?.attendance || {};
+  
+
+useEffect(() => {
+  console.log("EmployeeeData: ", EmployeeeData);
+  console.log("Error: ", error);
+  console.log("Loading: ", isLoading);
+}, [EmployeeeData, error, isLoading]);
+
+
   useEffect(() => {
     if (employeeAttendanceRecords && employeeAttendanceRecords.length > 0) {
       const todayRecord = employeeAttendanceRecords[0];
-      if (typeof todayRecord.employeeId === 'object' && todayRecord.employeeId !== null) {
+      if (
+        typeof todayRecord.employeeId === "object" &&
+        todayRecord.employeeId !== null
+      ) {
         const personalDetails = todayRecord.employeeId.personalDetails;
         const employmentId = todayRecord.employeeId?._id; // Access employmentDetails from the populated object
-        
-        console.log("+++++++++++++++++++++++++++++++++", personalDetails, employmentId);
+
+        console.log(
+          "+++++++++++++++++++++++++++++++++",
+          personalDetails,
+          employmentId
+        );
 
         setUserAttendance((prev) => ({
           ...prev,
-          name: `${personalDetails?.firstName || ''} ${personalDetails?.lastName || ''}`.trim() || prev.name,
+          name:
+            `${personalDetails?.firstName || ""} ${
+              personalDetails?.lastName || ""
+            }`.trim() || prev.name,
           role: personalDetails?.role || prev.role,
           // avatar: personalDetails?.profilePicture || prev.avatar,
           employeeId: employmentId || prev.employeeId, // Use the employeeId from the populated user
           department: personalDetails?.department || prev.department,
-          team:  prev.team,
+          team: prev.team,
           // performanceScore: userData?.performanceScore || prev.performanceScore, // If performanceScore is on User model
           checkInTime: todayRecord.checkInTime,
           checkOutTime: todayRecord.checkOutTime,
@@ -106,104 +132,96 @@ const [backTime, setBackTime] = useState<any>(null);
           todayBreakTime: todayRecord.breakTime || "00min",
           todayOvertime: todayRecord.overtime || "00hr 00min",
           todayStatus: todayRecord.status || "Not Checked In",
-          isCheckedIn: todayRecord.status === 'Checked In' || todayRecord.status === 'onBreak',
+          isCheckedIn:
+            todayRecord.status === "Checked In" ||
+            todayRecord.status === "onBreak",
         }));
-    }
-    
+      }
     }
   }, [employeeAttendanceRecords]);
- 
+  console.log("============************000==========", employeeData);
 
-  function formatDuration(seconds) {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-  
-    // Pad values to always have 2 digits
-    const pad = (num) => String(num).padStart(2, '0');
-  
-    return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+// Helper to format duration (for UI only)
+
+// --- Handlers for Check In/Out Actions ---
+
+const handleCheckIn = async () => {
+  const currentTime = new Date().toISOString();  // send full ISO date
+
+  try {
+    await triggerUpdateAttendance({
+      type: "checkIn",
+      checkInTime: currentTime,
+    }).unwrap();
+
+    setAttendanceStatus("checkedIn");
+    localStorage.setItem("status", "checkedIn");
+  } catch (error) {
+    console.error("Check-in failed:", error);
   }
+};
+
+const handleCheckOut = async () => {
+  const currentTime = new Date().toISOString(); 
   
+ if(AttendanceData.status === "onBreak") {
+  // If currently on break, handle back to work first
+    await handleBack();
+  } else if (AttendanceData.status === "notCheckedIn") {
+    // If not checked in, handle check-in first
+    await handleCheckIn();
+ }
 
-  // --- Handlers for Check In/Out Actions ---
-  const handleCheckIn = async () => {
-    const currentTime = dayjs().format(" hh:mm:ss A");
-   
-    console.log("Check-in time:", breakTime);
-  
-    try {
-        await triggerUpdateAttendance({type: 'checkIn', checkInTime: currentTime }).unwrap();
+  try {
+    await triggerUpdateAttendance({
+      type: "checkOut",
+     
+      checkOutTime: currentTime,
+    }).unwrap();
 
-        
-        console.log("======employeeeData=======",employeeAttendanceRecords)
-      setAttendanceStatus("checkedIn");
-      localStorage.setItem("status", "checkedIn");
-      
-    } catch (error) {
-      console.error("Check-in failed:", error);
-    }
-  };
+    setAttendanceStatus("checkedOut");
+    localStorage.setItem("status", "checkedOut");
+  } catch (error) {
+    console.error("Check-out failed:", error);
+  }
+};
 
-  const handleCheckOut = async () => {
-    const currentTime = dayjs();
-    const checkOutTime = currentTime.format(" hh:mm:ss A");
-    try {
-        await triggerUpdateAttendance({type:'checkOut',checkOutTime:checkOutTime}).unwrap();
-   
-        console.log("======employeeeData=======",employeeAttendanceRecords)
-        
-      setAttendanceStatus("checkedOut");
-      localStorage.setItem("status", "checkedOut");
-    } catch (error) {
-      console.error("Check-out failed:", error);
-    }
-  };
+const handleBreak = async () => {
+  const currentTime = new Date().toISOString();  
  
-  const handleBreak= async ()=>{
-    try{
-      await triggerUpdateAttendance({type:'onBreak'}).unwrap();
-      const currentTime = dayjs().tz("Asia/Kolkata");
-  setBreakTime(currentTime);
+  setBreakTime(currentTime); // store ISO time for break start
+
+  try {
+    await triggerUpdateAttendance({ type: "onBreak" }).unwrap();
+    console.log("=========",AttendanceData.status) // send full ISO date
+
     localStorage.setItem("status", "onBreak");
     setAttendanceStatus("onBreak");
-
-    }catch(error){
-      console.error("Break failed:", error);
-    }
+  } catch (error) {
+    console.error("Break failed:", error);
   }
-  const handleBack=async ()=>{
-    const currentTime = dayjs().tz("Asia/Kolkata");
+};
+
+const handleBack = async () => {
+  const currentTime = new Date().toISOString();
   setBackTime(currentTime);
-    
-  if (breakTime) {
-    const breakTimeDuration = currentTime.diff(breakTime, "second");
-    const TotalBreakTimeDuration=formatDuration(breakTimeDuration);
-    console.log("Break time duration in seconds:", TotalBreakTimeDuration);
-  }
 
-    
-    
+ 
 
-    try{
-    await triggerUpdateAttendance({type:'back'}).unwrap();
+  try {
+    await triggerUpdateAttendance({ type: "back" ,backTime:currentTime }).unwrap();
+
     localStorage.setItem("status", "checkedIn");
     setAttendanceStatus("checkedIn");
-    }catch(error){
-      console.error("Back to work failed:", error);
-    }
+  } catch (error) {
+    console.error("Back to work failed:", error);
   }
+};
 
-  const getTodayDate = () => {
-    const today = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    };
-    return  today.toLocaleDateString("en-IN", options);
-  };
-
+// Get today's date (for UI display only)
+const getTodayDate = () => {
+  return dayjs().tz("Asia/Kolkata").format("DD/MM/YYYY");
+};
   // --- Mock data for Sections ---
   const announcements = [
     {
@@ -283,12 +301,20 @@ const [backTime, setBackTime] = useState<any>(null);
     if (stored) {
       setAttendanceStatus(stored);
     }
-    
-    
   }, []);
 
-
-
+ 
+  const formatDuration=(seconds)=> {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+   
+    return `${hrs}h ${mins}m `;
+  }
+  
+  const formatTime=(timestampMs)=> {
+    return new Date(timestampMs).toLocaleTimeString();
+  }
+  
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme('spacing.6'))] p-6 bg-gray-50">
@@ -312,9 +338,10 @@ const [backTime, setBackTime] = useState<any>(null);
               </div>
               <div>
                 <h2 className="font-bold text-3xl mb-1">
-                  {userAttendance.name}
+                  {personalDetails.firstName}{" "}
+                  {personalDetails.lastName}
                 </h2>
-                <p className="text-lg opacity-90">{userAttendance.role}</p>
+                <p className="text-lg opacity-90">{personalDetails.role}</p>
               </div>
             </div>
             <div className="text-right">
@@ -335,7 +362,7 @@ const [backTime, setBackTime] = useState<any>(null);
               <div className="text-center p-4 bg-blue-50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
                 <p className="text-xs text-gray-600">Employee ID</p>
                 <p className="font-semibold text-lg text-[#034F75]">
-                  {userAttendance.employeeId}
+                  {AttendanceData.employeeId}
                 </p>
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
@@ -409,15 +436,15 @@ const [backTime, setBackTime] = useState<any>(null);
             </h3>
             <div className="space-y-2 w-full mt-6">
               {(attendanceStatus === "checkedOut" ||
-                attendanceStatus === "notCheckedIn" )&& (
-                  <button
-                    onClick={handleCheckIn}
-                    // disabled={isCheckedIn}
-                    className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-8 rounded-full text-md transition duration-300 ease-in-out w-full disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 shadow-md"
-                  >
-                    Check In
-                  </button>
-                )}
+                attendanceStatus === "notCheckedIn") && (
+                <button
+                  onClick={handleCheckIn}
+                  // disabled={isCheckedIn}
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-8 rounded-full text-md transition duration-300 ease-in-out w-full disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 shadow-md"
+                >
+                  Check In
+                </button>
+              )}
               {attendanceStatus == "checkedIn" && (
                 <button
                   onClick={handleBreak}
@@ -432,20 +459,19 @@ const [backTime, setBackTime] = useState<any>(null);
                   onClick={handleBack}
                   className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-8 rounded-full text-md transition duration-300 ease-in-out w-full transform hover:scale-105 shadow-md"
                 >
-                 Back
+                  Back
                 </button>
               )}
               {/* Check-Out button: show when checked in or on break */}
-             
-                <button
-                  onClick={handleCheckOut}
+
+              <button
+                onClick={handleCheckOut}
                 //   disabled={isCheckOutLoading}
-                  className="bg-red-500 text-white px-4 py-2 rounded ml-2"
-                >
-                  {/* {isCheckOutLoading ? "Checking Out..." : "Check Out"} */}
-                  check out
-                </button>
-             
+                className="bg-red-500 text-white px-4 py-2 rounded ml-2"
+              >
+                {/* {isCheckOutLoading ? "Checking Out..." : "Check Out"} */}
+                check out
+              </button>
             </div>
           </div>
 
@@ -469,11 +495,11 @@ const [backTime, setBackTime] = useState<any>(null);
             </div>
             <p className="text-sm text-gray-600 mb-2"></p>
             <h3 className="font-bold text-2xl text-[#034F75]">
-              {userAttendance.todayWorkingHours}
+              {formatDuration(AttendanceData.workingHours)}
             </h3>
             <p className="text-xs text-gray-500 mt-3">
-              In: {userAttendance?.checkInTime || "N/A"} | Out:{" "}
-              {userAttendance?.checkOutTime || "N/A"}
+              In: {formatTime(AttendanceData?.checkInTime )|| "N/A"} | Out:{" "}
+              {formatTime(AttendanceData?.checkOutTime )|| "N/A"}
             </p>
           </div>
         </div>

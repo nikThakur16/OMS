@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Urbanist } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./providers";
+import  Providers  from "./providers";
 
 const geistSans = Urbanist({
   variable: "--font-urbanist",

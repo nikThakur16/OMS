@@ -17,11 +17,11 @@ const attendanceSchema = new mongoose.Schema({
         index: true // Add an index for faster date queries
     },
     checkInTime: {
-        type: String, // Storing as string for time format (e.g., "09:00 AM")
+        type: Number, // Storing as string for time format (e.g., "09:00 AM")
         default: null
     },
     checkOutTime: {
-        type: String, // Storing as string for time format
+        type: Number, // Storing as string for time format
         default: null
     },
     status: { // e.g., 'Present', 'Absent', 'Half Day', 'Checked In', 'Checked Out'
@@ -30,16 +30,16 @@ const attendanceSchema = new mongoose.Schema({
         default: 'Not Checked In' // Default status
     },
     workingHours: {
-        type: String,
-        default: '00hr 00min'
+        type: Number,
+        default: 0
     },
     breakTime: {
-        type: String,
-        default: '00min'
+        type: Number,
+        default: 0
     },
     overtime: {
-        type: String,
-        default: '00hr 00min'
+        type: Number,
+        default: 0
     },
     totalBreakTime: { // New field to store total break duration in seconds
         type: Number,

@@ -28,6 +28,8 @@ export interface UpdateAttendancePayload {
     workingHours?: string;
     breakTime?: string;
     overtime?: string;
+    backTime?: string; // For 'back' action, when the employee returns from break
+
     // Add other fields as necessary depending on what your backend expects for each action
     // e.g., employeeId: string; if not derived from auth token
 }

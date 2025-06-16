@@ -8,10 +8,11 @@ import {
   UpdateAttendancePayload,
   AttendanceMutationResponse,
 } from "@/types/attendance/page";
+import { get } from "lodash";
 
 // Define interface for query parameters
 interface GetEmployeeAttendanceParams {
-  employeeId: string;
+  employeeId: string|undefined;
   date?: string; // Optional date in YYYY-MM-DD format
   startDate?: string; // Optional start date for range
   endDate?: string; // Optional end date for range
@@ -22,6 +23,13 @@ export const api = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL,
     credentials: "include",
+    prepareHeaders: (headers, { getState }) => {
+      const token = (getState() as any)?.login?.token;
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+      return headers;
+    }
   }), // Change if needed
   tagTypes: ["Users", "Attendance"],
   endpoints: (builder) => ({
@@ -82,6 +90,13 @@ export const api = createApi({
             ]
           : ["Attendance"],
     }),
+
+    //get employeeDashboard Data
+    getEmployeeDashboard: builder.query<any, void>({
+      query: () => '/api/attendance/employeeDashboard',
+      providesTags: ['Attendance'],
+    }),
+    // Get attendance records for a specific employee by ID
     getEmployeeAttendanceById: builder.query<
       AttendanceRecord[],
       GetEmployeeAttendanceParams
@@ -114,4 +129,5 @@ export const {
   useGetAllAttendanceQuery,
   useGetEmployeeAttendanceByIdQuery,
   useGetUserByIdQuery,
+  useGetEmployeeDashboardQuery,
 } = api;

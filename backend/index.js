@@ -27,6 +27,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/users', userRoutes); // Use the user routes
+app.use('/api/employeeDashboard', attendanceRoutes); // Use the attendance routes for employee dashboard
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
