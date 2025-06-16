@@ -11,7 +11,7 @@ import { useLogoutMutation } from "@/store/api";
 const Navbar = () => {
   const dispatch = useAppDispatch();
   const [searchTerm, setSearchTerm] = useState("");
-  let loggedUser =useAppSelector((state)=>state?.login?.user);
+  const loggedUser = useAppSelector((state)=>state?.login?.user);
   const router = useRouter();
   const [triggerLogout, { isLoading, error}] = useLogoutMutation();
 
@@ -42,18 +42,14 @@ const Navbar = () => {
       if (storedUser) {
         try {
           const parsedUser = JSON.parse(storedUser);
-          // Dispatch to Redux to populate the store, so subsequent renders use Redux state
           dispatch(setUserData(parsedUser));
-          // Update local loggedUser variable for immediate render if needed
-          loggedUser = parsedUser; 
         } catch (e) {
           console.error("Failed to parse user from localStorage", e);
-          // Optionally clear invalid localStorage item
           localStorage.removeItem('user');
         }
       }
     }
-  }, [loggedUser, dispatch]); // Depend on loggedUser and dispatch
+  }, [dispatch]); // Only depend on dispatch since we only need to check once on mount
   return (
     <div className="bg-white  h-[65px] flex justify-end items-center rounded-lg gap-[15vw] px-4">
       <div className="flex relative items-center justify-between">

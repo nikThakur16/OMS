@@ -1,63 +1,26 @@
+"use client"
 
+import { useEffect, useState } from "react";
+import { AttendanceData } from "@/types/attendance/page";
+import { useGetAllAttendanceQuery } from "@/store/api";
 
 interface PageProps {
     height?: string; // Define the height prop as an optional string
 }
 
-const page = ({height}: PageProps) => {
-    const attendanceData = [
-        {
-          name: "Syed Mahamudul Hasan",
-          role: "Flutter Developer",
-          checkIn: "09:36",
-          checkOut: "18:55",
-          workingHours: "09hr 02min",
-          breakTime: "45min",
-          extraHours: "(+30min)",
-          status: "Late"
-        },
-        {
-          name: "Kamrul Hasan",
-          role: "Back-End Developer",
-          checkIn: "09:00",
-          checkOut: "18:30",
-          workingHours: "09hr 30min",
-          breakTime: "1hr 05min",
-          extraHours: "--:--",
-          status: "In time"
-        },
-        {
-          name: "Arfan-Roky",
-          role: "Front-End Developer",
-          checkIn: "09:36",
-          checkOut: "18:55",
-          workingHours: "09hr 02min",
-          breakTime: "30min",
-          extraHours: "--:--",
-          status: "In time"
-        },
-        {
-          name: "Afsan-Rahmatullah",
-          role: "Full-Stack Developer",
-          checkIn: "09:10",
-          checkOut: "16:55",
-          workingHours: "07hr 02min",
-          breakTime: "45min",
-          extraHours: "--:--",
-          status: "In time"
-        },
-        {
-          name: "Wasif-Zaman-Omee",
-          role: "Full-Stack Developer",
-          checkIn: "09:36",
-          checkOut: "18:55",
-          workingHours: "09hr 02min",
-          breakTime: "45min",
-          extraHours: "(+45min)",
-          status: "In time"
-        }
-      ];
-      
+const Page = ({height}: PageProps) => {
+ 
+const [attendanceData, setAttendanceData] = useState<AttendanceData[]>([]);
+const {data,isLoading,error}= useGetAllAttendanceQuery()
+
+useEffect(()=>{
+  if(data){
+    setAttendanceData(data as unknown as AttendanceData[])
+  }
+},[data])
+console.log("====================================================",attendanceData)
+
+
   return (
     <div className='bg-white   text-[#034F75] max-h-[50vh] rounded-md shadow-md p-6'>
        <div className='flex items-center justify-between'>
@@ -103,4 +66,4 @@ const page = ({height}: PageProps) => {
   )
 }
 
-export default page
+export default Page

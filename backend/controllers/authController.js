@@ -3,6 +3,7 @@ const { body, validationResult } = require("express-validator");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt"); // Import bcrypt for password comparison
 const jwt = require("jsonwebtoken"); // Import jsonwebtoken for token generation
+const crypto = require('crypto'); // Add this at the top with other imports
 
 // Allowed enums (must match Mongoose schema and frontend options)
 const allowedRoles = ["Admin", "Employee", "HR", "Manager"];
@@ -280,7 +281,7 @@ const login = async (req, res) => {
     jwt.sign(
       payload,
       jwtSecret, // Use your secret key
-      { expiresIn: "1h" }, // Token expiration time (adjust as needed)
+      { expiresIn: "10h" }, // Token expiration time (adjust as needed)
       (err, token) => {
         if (err) throw err;
         res.cookie("token", token, {
@@ -314,4 +315,100 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, getAllUsers, login, logout };
+// Forgot Password Controller
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ "contactDetails.email": email });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Hash token and set to resetPasswordToken field
+    user.resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    // Set token expiry (1 hour from now)
+    user.resetPasswordExpire = Date.now() + 60 * 60 * 1000;
+
+    await user.save();
+
+    // TODO: Send email with reset token
+    // For now, we'll just return the token in response
+    // In production, you should send this via email
+    res.status(200).json({
+      message: "Password reset token generated",
+      resetToken: resetToken // Remove this in production
+    });
+
+  } catch (err) {
+    console.error("Error in forgot password:", err);
+    res.status(500).json({ error: "Server error during password reset request" });
+  }
+};
+
+// Reset Password Controller
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    // Validate new password
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ 
+        error: "Password must be at least 6 characters long" 
+      });
+    }
+
+    // Hash token to compare with stored token
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    // Find user with matching token and check if token is expired
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ 
+        error: "Invalid or expired reset token" 
+      });
+    }
+
+    // Update password and mark it as modified
+    user.password = newPassword;
+    user.markModified('password');
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    // Save the user with the new password
+    await user.save();
+
+    // Verify the password was updated by attempting to find the user and compare passwords
+    const updatedUser = await User.findById(user._id);
+    const isPasswordUpdated = await bcrypt.compare(newPassword, updatedUser.password);
+    
+    if (!isPasswordUpdated) {
+      throw new Error('Password update failed');
+    }
+
+    res.status(200).json({ 
+      message: "Password has been reset successfully" 
+    });
+
+  } catch (err) {
+    console.error("Error in reset password:", err);
+    res.status(500).json({ error: "Server error during password reset" });
+  }
+};
+
+module.exports = { register, getAllUsers, login, logout, forgotPassword, resetPassword };

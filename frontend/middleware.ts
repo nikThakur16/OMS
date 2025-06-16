@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const jwtSecret = process.env.JWT_SECRET;
-const publicPaths = ['/', '/login', '/register', '/404'];
+const publicPaths = ['/', '/register', '/forgot-password', '/404'];
 const allowedRoles = ['admin', 'hr', 'manager', 'employee'];
 
 export async function middleware(req: NextRequest) {
@@ -47,7 +47,7 @@ export async function middleware(req: NextRequest) {
     }
   } catch (err) {
     console.error('JWT verification error:', err);
-    return NextResponse.redirect(new URL('/login', req.url));
+    return NextResponse.redirect(new URL('/', req.url));
   }
 }
 

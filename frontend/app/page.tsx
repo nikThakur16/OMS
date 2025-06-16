@@ -49,6 +49,7 @@ const LoginPage = () => {
       // 1. Store the token (e.g., in local storage)
       localStorage.setItem('user', result.user ? JSON.stringify(result.user) : '');
       localStorage.setItem('role', result.user?.role || ''); // Store the role for later use
+      localStorage.setItem('token', result.token);
   
       dispatch(setCredentials(result));
 

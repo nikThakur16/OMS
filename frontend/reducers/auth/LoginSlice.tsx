@@ -8,8 +8,8 @@ import { AuthState, LoginResponseData } from '@/types/auth/page'; // Import type
 const loadAuthState = (): AuthState => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   // You might also store user data in localStorage and parse it here
-  // const user = typeof window !== 'undefined' && localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null;
-   const user = null; // For now, we'll rely on the login response for user data
+   const user = typeof window !== 'undefined' && localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null;
+  
 
   return {
     token,
@@ -51,6 +51,7 @@ const authSlice = createSlice({
       // Clear credentials from localStorage
       localStorage.removeItem('token');
       localStorage.removeItem('user'); // Ensure localStorage is cleared on logout
+      localStorage.removeItem('status');
     },
     // You might add reducers for setting loading or error states manually if needed,
     // but RTK Query's isLoading and error often suffice for the login process itself.

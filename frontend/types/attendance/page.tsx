@@ -1,11 +1,12 @@
 // frontend/types/attendance/page.ts (You might want to create this new file)
 
-import { User } from "../users/page";
+
+import { PersonalDetailsData ,AddressDetailsData,ContactDetailsData,BankDetailsData} from "../register/page";
 
 // This interface should accurately reflect the structure of your backend Attendance model
 export interface AttendanceRecord {
     _id: string;
-    employeeId: string |User;
+    employeeId: Employee;
     employeeName: string;
     date: string; // Or Date if you convert it client-side
     checkInTime: string | null;
@@ -13,6 +14,7 @@ export interface AttendanceRecord {
     status: string;
     workingHours: string;
     breakTime: string;
+ 
     overtime: string;
     createdAt: string;
     updatedAt: string;
@@ -39,3 +41,30 @@ export interface AttendanceMutationResponse {
 
 // You'd import these into your api.ts file:
 // import { AttendanceRecord, CheckInPayload, CheckOutPayload, AttendanceMutationResponse } from '@/types/attendance/page';
+
+
+interface Employee {
+    personalDetails: PersonalDetailsData;
+    addressDetails: AddressDetailsData;
+    contactDetails: ContactDetailsData;
+    bankDetails: BankDetailsData;
+    _id: string;
+    organizationId: string;
+}
+export interface AttendanceData {
+    _id: string;
+    employeeId: Employee;
+    employeeName: string;
+    date: string;
+    checkInTime: string;
+    checkOutTime: string | null;
+    status: string;
+    workingHours: string;
+    breakTime: string;
+    overtime: string;
+    totalBreakTime: number;
+    currentBreakStartTime: string | null;
+    createdAt: string;
+    updatedAt: string;
+    __v: number;
+}
