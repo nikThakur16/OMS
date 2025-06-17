@@ -3,6 +3,9 @@
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
+import { getTodayDateParam ,formatDuration, formatTime } from "@/utils/Time&Date";
+import { useLiveWorkingTime } from "@/utils/hooks/LiveWorkingHours";
+import { useLiveBreakTime } from "@/utils/hooks/LiveBreakingHours";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -30,7 +33,7 @@ const EmployeeDashboard = () => {
   // const loggedInEmployeeId = user ? JSON.parse(user)?.id : null;
   const [breakTime, setBreakTime] = useState<any>(null);
   const loggedUser = useAppSelector((state) => state?.login?.user);
-  console.log("=============================", loggedUser);
+
   const [backTime, setBackTime] = useState<any>(null);
   // --- Mock User Data & Attendance State ---
   const [triggerUpdateAttendance, { isLoading: isUpdatingAttendance }] =
@@ -60,20 +63,14 @@ const EmployeeDashboard = () => {
     weeklyHours: "00hr 00min",
     monthlyAttendanceRate: "0%",
     leaveBalance: {
-      annual: 0,
-      sick: 0,
-      casual: 0,
-      pendingRequests: 0,
+      annual: 7,
+      sick: 9,
+      casual: 9,
+      pendingRequests: 10,
     },
   });
 
-  const getTodayDateParam = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = (today.getMonth() + 1).toString().padStart(2, "0"); // Months are 0-indexed
-    const day = today.getDate().toString().padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
+
   const loggedInEmployeeId = loggedUser?.id || null; // Get the logged-in employee ID from the user state
   const {
     data: employeeAttendanceRecords,
@@ -89,6 +86,9 @@ const EmployeeDashboard = () => {
   const { data: EmployeeeData, error, isLoading } = useGetEmployeeDashboardQuery();
   const personalDetails = EmployeeeData?.user?.personalDetails || {};
   const AttendanceData=EmployeeeData?.attendance || {};
+  const liveTime = useLiveWorkingTime(AttendanceData?.checkInTime, AttendanceData?.breakTime,AttendanceData?.status);
+  const liveBreak = useLiveBreakTime(AttendanceData.currentBreakStartTime);
+
   
 
 useEffect(() => {
@@ -108,45 +108,19 @@ useEffect(() => {
         const personalDetails = todayRecord.employeeId.personalDetails;
         const employmentId = todayRecord.employeeId?._id; // Access employmentDetails from the populated object
 
-        console.log(
-          "+++++++++++++++++++++++++++++++++",
-          personalDetails,
-          employmentId
-        );
-
-        setUserAttendance((prev) => ({
-          ...prev,
-          name:
-            `${personalDetails?.firstName || ""} ${
-              personalDetails?.lastName || ""
-            }`.trim() || prev.name,
-          role: personalDetails?.role || prev.role,
-          // avatar: personalDetails?.profilePicture || prev.avatar,
-          employeeId: employmentId || prev.employeeId, // Use the employeeId from the populated user
-          department: personalDetails?.department || prev.department,
-          team: prev.team,
-          // performanceScore: userData?.performanceScore || prev.performanceScore, // If performanceScore is on User model
-          checkInTime: todayRecord.checkInTime,
-          checkOutTime: todayRecord.checkOutTime,
-          todayWorkingHours: todayRecord.workingHours || "00hr 00min",
-          todayBreakTime: todayRecord.breakTime || "00min",
-          todayOvertime: todayRecord.overtime || "00hr 00min",
-          todayStatus: todayRecord.status || "Not Checked In",
-          isCheckedIn:
-            todayRecord.status === "Checked In" ||
-            todayRecord.status === "onBreak",
-        }));
+        
+      
       }
     }
   }, [employeeAttendanceRecords]);
-  console.log("============************000==========", employeeData);
+
 
 // Helper to format duration (for UI only)
 
 // --- Handlers for Check In/Out Actions ---
 
 const handleCheckIn = async () => {
-  const currentTime = new Date().toISOString();  // send full ISO date
+  const currentTime = Date.now() // send full ISO date
 
   try {
     await triggerUpdateAttendance({
@@ -162,7 +136,7 @@ const handleCheckIn = async () => {
 };
 
 const handleCheckOut = async () => {
-  const currentTime = new Date().toISOString(); 
+  const currentTime = Date.now(); // Get current time in milliseconds
   
  if(AttendanceData.status === "onBreak") {
   // If currently on break, handle back to work first
@@ -187,13 +161,13 @@ const handleCheckOut = async () => {
 };
 
 const handleBreak = async () => {
-  const currentTime = new Date().toISOString();  
+  const currentTime = Date.now()
  
   setBreakTime(currentTime); // store ISO time for break start
 
   try {
     await triggerUpdateAttendance({ type: "onBreak" }).unwrap();
-    console.log("=========",AttendanceData.status) // send full ISO date
+  
 
     localStorage.setItem("status", "onBreak");
     setAttendanceStatus("onBreak");
@@ -203,7 +177,7 @@ const handleBreak = async () => {
 };
 
 const handleBack = async () => {
-  const currentTime = new Date().toISOString();
+  const currentTime = Date.now()
   setBackTime(currentTime);
 
  
@@ -304,17 +278,7 @@ const getTodayDate = () => {
   }, []);
 
  
-  const formatDuration=(seconds)=> {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-   
-    return `${hrs}h ${mins}m `;
-  }
-  
-  const formatTime=(timestampMs)=> {
-    return new Date(timestampMs).toLocaleTimeString();
-  }
-  
+
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme('spacing.6'))] p-6 bg-gray-50">
@@ -341,7 +305,7 @@ const getTodayDate = () => {
                   {personalDetails.firstName}{" "}
                   {personalDetails.lastName}
                 </h2>
-                <p className="text-lg opacity-90">{personalDetails.role}</p>
+                <p className="text-lg opacity-90">{personalDetails?.role}</p>
               </div>
             </div>
             <div className="text-right">
@@ -362,19 +326,19 @@ const getTodayDate = () => {
               <div className="text-center p-4 bg-blue-50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
                 <p className="text-xs text-gray-600">Employee ID</p>
                 <p className="font-semibold text-lg text-[#034F75]">
-                  {AttendanceData.employeeId}
+                  {AttendanceData?.employeeId}
                 </p>
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
                 <p className="text-xs text-gray-600">Department</p>
                 <p className="font-semibold text-lg text-[#034F75]">
-                  {userAttendance.department}
+                  {personalDetails?.department}
                 </p>
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 col-span-2">
                 <p className="text-xs text-gray-600">Team Assignment</p>
                 <p className="font-semibold text-lg text-[#034F75]">
-                  {userAttendance.team}
+                  {personalDetails?.team}
                 </p>
               </div>
             </div>
@@ -432,7 +396,7 @@ const getTodayDate = () => {
             </div>
             <p className="text-sm opacity-90 mb-2">Current Status</p>
             <h3 className="font-bold text-2xl mb-4">
-              {userAttendance.todayStatus}
+              {AttendanceData.status}
             </h3>
             <div className="space-y-2 w-full mt-6">
               {(attendanceStatus === "checkedOut" ||
@@ -495,7 +459,8 @@ const getTodayDate = () => {
             </div>
             <p className="text-sm text-gray-600 mb-2"></p>
             <h3 className="font-bold text-2xl text-[#034F75]">
-              {formatDuration(AttendanceData.workingHours)}
+            {AttendanceData.status==='onBreak'?(liveBreak):
+              liveTime}
             </h3>
             <p className="text-xs text-gray-500 mt-3">
               In: {formatTime(AttendanceData?.checkInTime )|| "N/A"} | Out:{" "}

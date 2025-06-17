@@ -46,7 +46,7 @@ const attendanceSchema = new mongoose.Schema({
         default: 0,
     },
     currentBreakStartTime: { // New field to store the timestamp when a break started
-        type: Date, // Store as Date object for accurate time calculation
+        type: Number, // Store as Date object for accurate time calculation
     },
 }, { timestamps: true });
 

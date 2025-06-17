@@ -205,10 +205,8 @@ const register = [
 const getAllUsers = async (req, res) => {
   try {
     // Find all users and select the fields you want to return
-    const users = await User.find(
-      {},
-      "_id personalDetails contactDetails.email"
-    );
+    const users = await User.find({}, { password: 0 });
+
 
     res.status(200).json(users);
   } catch (err) {

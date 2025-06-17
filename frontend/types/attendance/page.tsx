@@ -9,13 +9,15 @@ export interface AttendanceRecord {
     employeeId: Employee;
     employeeName: string;
     date: string; // Or Date if you convert it client-side
-    checkInTime: string | null;
-    checkOutTime: string | null;
+    checkInTime: number ;
+    checkOutTime:  number;
     status: string;
-    workingHours: string;
-    breakTime: string;
+    workingHours: number;
+    breakTime: number;
+    currentBreakStartTime: number ; // Nullable if the employee is not currently on break
+    
  
-    overtime: string;
+    overtime: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -23,12 +25,12 @@ export interface AttendanceRecord {
 // Define the payload for check-in mutation
 export interface UpdateAttendancePayload {
     type: 'checkIn' | 'checkOut' | 'onBreak' | 'back';
-    checkInTime?: string;
-    checkOutTime?: string;
-    workingHours?: string;
-    breakTime?: string;
-    overtime?: string;
-    backTime?: string; // For 'back' action, when the employee returns from break
+    checkInTime?: number;
+    checkOutTime?: number;
+    workingHours?: number;
+    breakTime?: number;
+    overtime?: number;
+    backTime?: number; // For 'back' action, when the employee returns from break
 
     // Add other fields as necessary depending on what your backend expects for each action
     // e.g., employeeId: string; if not derived from auth token
@@ -65,7 +67,7 @@ export interface AttendanceData {
     breakTime: string;
     overtime: string;
     totalBreakTime: number;
-    currentBreakStartTime: string | null;
+    currentBreakStartTime: number | null;
     createdAt: string;
     updatedAt: string;
     __v: number;

@@ -39,16 +39,27 @@ const toISTDate = (date) => {
 // ✅ GET ALL ATTENDANCE (Admin Only)
 exports.getAllAttendance = async (req, res) => {
   try {
-    const attendanceRecords = await Attendance.find({})
+    const { date } = req.query;
+    let filter = {};
+
+    if (date) {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) {
+        return res.status(400).json({ message: "Invalid date format." });
+      }
+      const start = toISTDate(d);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      filter.date = { $gte: start, $lt: end };
+    }
+
+    const attendanceRecords = await Attendance.find(filter)
       .populate("employeeId")
-      .sort({
-        date: -1,
-        employeeName: 1,
-      });
+      .sort({ date: -1, employeeName: 1 });
 
     res.status(200).json(attendanceRecords);
-  } catch (error) {
-    console.error("Error fetching all attendance records:", error);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -184,6 +195,7 @@ exports.updateAttendance = async (req, res) => {
     }
     attendanceRecord.status = "Checked In";
     attendanceRecord.totalBreakTime = 0;
+    attendanceRecord.checkOutTime = null; // Reset checkOutTime on new check-in
     attendanceRecord.currentBreakStartTime = null;
   } else {
     attendanceRecord = new Attendance({
@@ -207,7 +219,7 @@ exports.updateAttendance = async (req, res) => {
     if (attendanceRecord.status === "onBreak" && attendanceRecord.currentBreakStartTime) {
       const breakStartTime = new Date(attendanceRecord.currentBreakStartTime);
       const breakDuration = (new Date() - breakStartTime) / 1000;
-      attendanceRecord.totalBreakTime += breakDuration;
+      attendanceRecord.totalBreakTime += breakDuration;                                                                                                                                                                                                                  
       attendanceRecord.currentBreakStartTime = null;
     }
   

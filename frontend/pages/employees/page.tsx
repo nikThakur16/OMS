@@ -37,6 +37,8 @@ const filteredUserList = Array.isArray(users)
   })
 : [];
 
+console.log("Filtered User List:", filteredUserList);
+
 
 
   return (
@@ -68,8 +70,8 @@ const filteredUserList = Array.isArray(users)
                         <td className="text-center py-4">{user.personalDetails.role}</td>
                         <td className="text-center py-4">{user.personalDetails.department}</td>
                         <td className="text-center py-4">{user.contactDetails.email}</td>
-                        <td className="text-center py-4">9876543216</td>
-                        <td className="text-center py-4">707099696689i</td>
+                        <td className="text-center py-4">{user.contactDetails.primaryPhoneNumber}</td>
+                        <td className="text-center py-4">{(user?.createdAt).split("T")[0]}</td>
                         
                     </tr>
                     

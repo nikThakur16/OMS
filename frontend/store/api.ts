@@ -77,8 +77,9 @@ export const api = createApi({
       }),
       invalidatesTags: ["Attendance"], // Invalidate attendance cache after any update
     }),
-    getAllAttendance: builder.query<AttendanceRecord[], void>({
-      query: () => "api/attendance",
+    getAllAttendance: builder.query<AttendanceRecord[], string|void>({
+      query: (date) =>
+        date ? `api/attendance?date=${date}` : "api/attendance",
       providesTags: (result) =>
         result
           ? [
