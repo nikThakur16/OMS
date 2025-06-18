@@ -16,14 +16,12 @@ const attendanceSchema = new mongoose.Schema({
         default: Date.now,
         index: true // Add an index for faster date queries
     },
-    checkInTime: {
-        type: Number, // Storing as string for time format (e.g., "09:00 AM")
-        default: null
-    },
-    checkOutTime: {
-        type: Number, // Storing as string for time format
-        default: null
-    },
+    sessions: [
+        {
+          checkIn: { type: Date, required: true },
+          checkOut: { type: Date, default: null } // nullable until checked out
+        }
+      ],
     status: { // e.g., 'Present', 'Absent', 'Half Day', 'Checked In', 'Checked Out'
         type: String,
         enum: ['Not Checked In', 'Checked In', 'onBreak', 'Checked Out'], // Updated enum values

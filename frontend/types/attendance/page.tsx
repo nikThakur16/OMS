@@ -20,6 +20,7 @@ export interface AttendanceRecord {
     overtime: number;
     createdAt: string;
     updatedAt: string;
+    sessions: AttendanceSession[];
 }
 
 // Define the payload for check-in mutation
@@ -71,4 +72,9 @@ export interface AttendanceData {
     createdAt: string;
     updatedAt: string;
     __v: number;
+}
+
+export interface AttendanceSession {
+  checkIn: string;
+  checkOut: string | null;
 }

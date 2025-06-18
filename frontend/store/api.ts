@@ -2,20 +2,18 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { RegistrationData } from "@/types/register/page";
 import { User } from "@/types/users/page";
 import { LoginData, LoginResponseData } from "@/types/auth/page";
-import { logout } from "@/reducers/auth/LoginSlice";
 import {
   AttendanceRecord,
   UpdateAttendancePayload,
   AttendanceMutationResponse,
 } from "@/types/attendance/page";
-import { get } from "lodash";
 
-// Define interface for query parameters
+// Optional: to support query string building
 interface GetEmployeeAttendanceParams {
-  employeeId: string|undefined;
-  date?: string; // Optional date in YYYY-MM-DD format
-  startDate?: string; // Optional start date for range
-  endDate?: string; // Optional end date for range
+  employeeId: string | undefined;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export const api = createApi({
@@ -29,17 +27,22 @@ export const api = createApi({
         headers.set("Authorization", `Bearer ${token}`);
       }
       return headers;
-    }
-  }), // Change if needed
-  tagTypes: ["Users", "Attendance"],
+    },
+  }),
+  tagTypes: ["Users", "Attendance", "Announcements"],
+
   endpoints: (builder) => ({
-    // GET users
+    // USERS
     getUsers: builder.query<User[], void>({
       query: () => "api/auth/users",
       providesTags: ["Users"],
     }),
 
-    // POST: Add user
+    getUserById: builder.query<User[], string>({
+      query: (id) => `api/users/${id}`,
+      providesTags: (result, error, id) => [{ type: "Users", id }],
+    }),
+
     register: builder.mutation<any, RegistrationData>({
       query: (registrationData) => ({
         url: "api/auth/register",
@@ -48,7 +51,7 @@ export const api = createApi({
       }),
       invalidatesTags: ["Users"],
     }),
-    // POST: Login user
+
     login: builder.mutation<LoginResponseData, LoginData>({
       query: (loginData) => ({
         url: "api/auth/login",
@@ -56,28 +59,16 @@ export const api = createApi({
         body: loginData,
       }),
     }),
+
     logout: builder.mutation<{ message: string }, void>({
       query: () => ({
         url: "/api/auth/logout",
         method: "POST",
       }),
     }),
-    getUserById:builder.query<User[],string>({
-      query: (id) => `api/users/${id}`,
-      providesTags: (result, error, id) => [{ type: "Users", id }],
-    }),
-    updateAttendance: builder.mutation<
-      AttendanceMutationResponse,
-      UpdateAttendancePayload
-    >({
-      query: (payload) => ({
-        url: "/api/attendance/update", // The new single endpoint
-        method: "POST",
-        body: payload,
-      }),
-      invalidatesTags: ["Attendance"], // Invalidate attendance cache after any update
-    }),
-    getAllAttendance: builder.query<AttendanceRecord[], string|void>({
+
+    // ATTENDANCE
+    getAllAttendance: builder.query<AttendanceRecord[], string | void>({
       query: (date) =>
         date ? `api/attendance?date=${date}` : "api/attendance",
       providesTags: (result) =>
@@ -92,12 +83,18 @@ export const api = createApi({
           : ["Attendance"],
     }),
 
-    //get employeeDashboard Data
-    getEmployeeDashboard: builder.query<any, void>({
-      query: () => '/api/attendance/employeeDashboard',
-      providesTags: ['Attendance'],
+    updateAttendance: builder.mutation<
+      AttendanceMutationResponse,
+      UpdateAttendancePayload
+    >({
+      query: (payload) => ({
+        url: "/api/attendance/update",
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: ["Attendance"],
     }),
-    // Get attendance records for a specific employee by ID
+
     getEmployeeAttendanceById: builder.query<
       AttendanceRecord[],
       GetEmployeeAttendanceParams
@@ -108,7 +105,6 @@ export const api = createApi({
         if (date) params.append("date", date);
         if (startDate) params.append("startDate", startDate);
         if (endDate) params.append("endDate", endDate);
-
         if (params.toString()) {
           url += `?${params.toString()}`;
         }
@@ -117,6 +113,34 @@ export const api = createApi({
       providesTags: (result, error, { employeeId }) => [
         { type: "Attendance", id: employeeId },
       ],
+    }),
+
+    getEmployeeDashboard: builder.query<any, void>({
+      query: () => "/api/attendance/employeeDashboard",
+      providesTags: ["Attendance"],
+    }),
+
+    // ANNOUNCEMENTS
+    getAnnouncements: builder.query<any[], void>({
+      query: () => "api/announcements",
+      providesTags: ["Announcements"],
+    }),
+
+    createAnnouncement: builder.mutation<any, Partial<any>>({
+      query: (data) => ({
+        url: "api/announcements",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Announcements"],
+    }),
+
+    deleteAnnouncement: builder.mutation<{ message: string }, string>({
+      query: (id) => ({
+        url: `api/announcements/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Announcements"],
     }),
   }),
 });
@@ -131,4 +155,7 @@ export const {
   useGetEmployeeAttendanceByIdQuery,
   useGetUserByIdQuery,
   useGetEmployeeDashboardQuery,
+  useGetAnnouncementsQuery,
+  useCreateAnnouncementMutation,
+  useDeleteAnnouncementMutation,
 } = api;

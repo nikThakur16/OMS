@@ -2,13 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');  // add mongoose import
 const cors = require('cors'); // Import the cors middleware
+const cookieParser = require('cookie-parser');
+const http = require('http');
 const app = express();
 const authRoutes = require('./routes/authRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
-const cookieParser = require('cookie-parser');
 const userRoutes = require('./routes/userRoutes'); // Import your user routes
-app.use(cookieParser());
+const announcementRoutes = require('./routes/announcementRoutes'); // <-- Add this
 
+app.use(cookieParser());
 
 const PORT = process.env.PORT || 5000;
 
@@ -28,6 +30,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/users', userRoutes); // Use the user routes
 app.use('/api/employeeDashboard', attendanceRoutes); // Use the attendance routes for employee dashboard
+app.use('/api/announcements', announcementRoutes); // <-- Add this
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
@@ -38,6 +41,19 @@ app.get('/', (req, res) => {
   res.send('OMS Backend is running');
 });
 
-app.listen(PORT, () => {
+// --- Socket.IO integration ---
+const server = http.createServer(app);
+const { Server } = require('socket.io');
+const io = new Server(server, { cors: { origin: '*' } });
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
+
+server.listen(PORT, () => {
   console.log(`Server started on port ${PORT}`);
 });

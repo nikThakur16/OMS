@@ -1,6 +1,7 @@
 import EmployeeDtsCard from "@/components/comman/Cards/EmployeeDtsCard"
 import DepartmentCard from "@/components/comman/Cards/DepartmentCard"
 import Attendance from "@/pages/attendance/page"
+import AnnouncementCard from "@/components/annoucements/AnnouncementCard"
 
 const page = () => {
   return (
@@ -11,7 +12,7 @@ const page = () => {
         
         <EmployeeDtsCard />
         
-        <EmployeeDtsCard />
+  <AnnouncementCard/>
         
         
       </div>

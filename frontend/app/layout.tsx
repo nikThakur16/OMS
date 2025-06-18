@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Urbanist } from "next/font/google";
 import "./globals.css";
 import  Providers  from "./providers";
-
+import { Toaster } from "react-hot-toast";
 const geistSans = Urbanist({
   variable: "--font-urbanist",
   subsets: ["latin"],
@@ -32,6 +32,25 @@ export default function RootLayout({
         className={`${geistSans.variable} antialiased bg-[#D3E7F0] `}
       >
        <Providers>{children}</Providers>
+       <Toaster
+        position="top-right"
+        reverseOrder={false}
+        toastOptions={{
+          className: "bg-[#034F75] text-white font-semibold",
+          style: {
+            background: "#034F75",
+            color: "#ffffff",
+            fontSize: "14px",
+          },
+          success: {
+            duration: 3000,
+            theme: {
+              primary: "#4ade80", // Green
+              secondary: "#f0f9ff", // Light Blue
+            },
+          },
+        }}
+      />
       </body>
     </html>
   );

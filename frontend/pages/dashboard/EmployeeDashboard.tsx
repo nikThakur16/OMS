@@ -4,12 +4,15 @@ import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { getTodayDateParam ,formatDuration, formatTime } from "@/utils/Time&Date";
-import { useLiveWorkingTime } from "@/utils/hooks/LiveWorkingHours";
+import { useLiveWorkingTimeFromSessions } from "@/utils/hooks/LiveWorkingHours";
 import { useLiveBreakTime } from "@/utils/hooks/LiveBreakingHours";
+import { useRef, useEffect } from "react";
+import io, { Socket } from "socket.io-client";
+import toast from "react-hot-toast";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   LineChart,
@@ -23,16 +26,24 @@ import {
 import {
   useUpdateAttendanceMutation,
   useGetEmployeeAttendanceByIdQuery,
-  useGetUserByIdQuery,
+useGetAnnouncementsQuery,
   useGetEmployeeDashboardQuery,
 } from "@/store/api";
-import { set } from "lodash";
+import { formatToUserTimeZone } from "@/utils/Time&Date";
+
+type Announcement = {
+  title: string;
+  message: string;
+  targetRoles: string[];
+  // add other fields as needed
+};
 
 const EmployeeDashboard = () => {
   // const user = localStorage.getItem("user");
   // const loggedInEmployeeId = user ? JSON.parse(user)?.id : null;
   const [breakTime, setBreakTime] = useState<any>(null);
   const loggedUser = useAppSelector((state) => state?.login?.user);
+  console.log("===========================================",loggedUser)
 
   const [backTime, setBackTime] = useState<any>(null);
   // --- Mock User Data & Attendance State ---
@@ -82,17 +93,34 @@ const EmployeeDashboard = () => {
     date: getTodayDateParam(),
   });
 
+const {
+    data: announcementsData,
+    isLoading: isFetchingAnnouncements,
+    error: fetchAnnouncementsError,
+    refetch: refetchAnnouncements,
+  } = useGetAnnouncementsQuery(undefined);
 
-  const { data: EmployeeeData, error, isLoading } = useGetEmployeeDashboardQuery();
+  const {
+    data: EmployeeeData,
+    error,
+    isLoading,
+    refetch: refetchEmployeeDashboard,
+  } = useGetEmployeeDashboardQuery();
   const personalDetails = EmployeeeData?.user?.personalDetails || {};
   const AttendanceData=EmployeeeData?.attendance || {};
-  const liveTime = useLiveWorkingTime(AttendanceData?.checkInTime, AttendanceData?.breakTime,AttendanceData?.status);
+
+  const liveTime = useLiveWorkingTimeFromSessions(
+    AttendanceData?.sessions,
+    AttendanceData?.totalBreakTime,
+    AttendanceData?.status
+  );
   const liveBreak = useLiveBreakTime(AttendanceData.currentBreakStartTime);
 
   
 
 useEffect(() => {
   console.log("EmployeeeData: ", EmployeeeData);
+  console.log("=-============================",announcementsData) 
   console.log("Error: ", error);
   console.log("Loading: ", isLoading);
 }, [EmployeeeData, error, isLoading]);
@@ -130,6 +158,7 @@ const handleCheckIn = async () => {
 
     setAttendanceStatus("checkedIn");
     localStorage.setItem("status", "checkedIn");
+    refetchEmployeeDashboard();
   } catch (error) {
     console.error("Check-in failed:", error);
   }
@@ -155,6 +184,7 @@ const handleCheckOut = async () => {
 
     setAttendanceStatus("checkedOut");
     localStorage.setItem("status", "checkedOut");
+    refetchEmployeeDashboard();
   } catch (error) {
     console.error("Check-out failed:", error);
   }
@@ -197,29 +227,7 @@ const getTodayDate = () => {
   return dayjs().tz("Asia/Kolkata").format("DD/MM/YYYY");
 };
   // --- Mock data for Sections ---
-  const announcements = [
-    {
-      id: 1,
-      title: "Important: All hands meeting on Friday, 10 AM",
-      date: "2025-06-15",
-    },
-    {
-      id: 2,
-      title: "New HR policy updates available on portal",
-      date: "2025-06-10",
-    },
-    {
-      id: 3,
-      title: "Holiday schedule for December published",
-      date: "2025-06-01",
-    },
-    {
-      id: 4,
-      title: "Q2 Performance Reviews starting soon",
-      date: "2025-05-28",
-    },
-  ];
-
+ 
   const monthlyHoursData = [
     { name: "Week 1", hours: 40 },
     { name: "Week 2", hours: 38 },
@@ -276,9 +284,59 @@ const getTodayDate = () => {
       setAttendanceStatus(stored);
     }
   }, []);
+  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; // Get user's time zone
 
- 
+  // Find the latest session with a checkOut time
+  const latestCheckOutSession = AttendanceData.sessions
+    ? AttendanceData.sessions
+        .filter((s: any) => s.checkOut)
+        .reduce((latest: any, session: any) => {
+          if (!latest || new Date(session.checkOut) > new Date(latest.checkOut)) {
+            return session;
+          }
+          return latest;
+        }, null)
+    : null;
 
+  const lastSession = AttendanceData.sessions && AttendanceData.sessions.length
+    ? AttendanceData.sessions[AttendanceData.sessions.length - 1]
+    : null;
+
+  const latestCheckOutDisplay =
+    lastSession && !lastSession.checkOut
+      ? "---"
+      : latestCheckOutSession && latestCheckOutSession.checkOut
+      ? formatToUserTimeZone(latestCheckOutSession.checkOut, userTimeZone)
+      : "---";
+
+  const socketRef = useRef<Socket | null>(null);
+  useEffect(() => {
+    if (!socketRef.current) {
+      socketRef.current = io("http://localhost:5000");
+      console.log("Socket.IO client connected!");
+    }
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!socketRef.current) return;
+    const handleNewAnnouncement = (announcement: Announcement) => {
+      setTimeout(() => {
+        refetchAnnouncements().then((res) => {
+          console.log("Refetched announcements:", res);
+        });
+      }, 200);
+      toast.success("New Announcement: " + announcement.title);
+    };
+    socketRef.current.on("new-announcement", handleNewAnnouncement);
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.off("new-announcement", handleNewAnnouncement);
+      }
+    };
+  }, [refetchAnnouncements, loggedUser]);
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme('spacing.6'))] p-6 bg-gray-50">
@@ -459,12 +517,13 @@ const getTodayDate = () => {
             </div>
             <p className="text-sm text-gray-600 mb-2"></p>
             <h3 className="font-bold text-2xl text-[#034F75]">
-            {AttendanceData.status==='onBreak'?(liveBreak):
-              liveTime}
+            {AttendanceData.status==='onBreak'&&(liveBreak)}
+            {AttendanceData.status==='Checked In'&&(liveTime)}
+            {AttendanceData.status==='Checked Out'&&(formatDuration(AttendanceData?.workingHours))}
+              
             </h3>
             <p className="text-xs text-gray-500 mt-3">
-              In: {formatTime(AttendanceData?.checkInTime )|| "N/A"} | Out:{" "}
-              {formatTime(AttendanceData?.checkOutTime )|| "N/A"}
+              In: {formatToUserTimeZone(AttendanceData.sessions?.[0].checkIn, userTimeZone)|| "N/A"} | Out: {latestCheckOutDisplay}
             </p>
           </div>
         </div>
@@ -536,7 +595,7 @@ const getTodayDate = () => {
                 >
                   <path
                     fillRule="evenodd"
-                    d="M18 13.5V10A8 8 0 002 10v3.5a1.5 1.5 0 003 0V12h.5a.5.5 0 01.5.5V13a.5.5 0 00.5.5h.5a.5.5 0 00.5-.5v-.5h.5a.5.5 0 01.5.5V13.5a1.5 1.5 0 003 0zM12 2.25A1.75 1.75 0 0010.25 4h-4.5A1.75 1.75 0 004 2.25v-.25a.75.75 0 011.5 0v.25h9v-.25a.75.75 0 011.5 0v.25z"
+                    d="M18 13.5V10A8 8 0 112 10v3.5a1.5 1.5 0 003 0V12h.5a.5.5 0 01.5.5V13a.5.5 0 00.5.5h.5a.5.5 0 00.5-.5v-.5h.5a.5.5 0 01.5.5V13.5a1.5 1.5 0 003 0zM12 2.25A1.75 1.75 0 0010.25 4h-4.5A1.75 1.75 0 004 2.25v-.25a.75.75 0 011.5 0v.25h9v-.25a.75.75 0 011.5 0v.25z"
                     clipRule="evenodd"
                   />
                 </svg>
@@ -741,9 +800,9 @@ const getTodayDate = () => {
             Company Announcements
           </h3>
           <div className="space-y-4 max-h-64 overflow-y-auto scrollbar-hide">
-            {announcements.map((announcement) => (
+            {announcementsData?.map((announcement) => (
               <div
-                key={announcement.id}
+                key={announcement._id}
                 className="flex items-start space-x-4 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0"
               >
                 <div className="w-10 h-10 flex-shrink-0 bg-blue-100 rounded-md flex items-center justify-center transform transition-transform hover:rotate-3 duration-200">
@@ -762,11 +821,17 @@ const getTodayDate = () => {
                     />
                   </svg>
                 </div>
-                <div>
+                <div className="w-full">
+                  <div className="flex items-center justify-between mb-2"> 
                   <h4 className="font-semibold text-gray-800">
                     {announcement.title}
                   </h4>
-                  <p className="text-sm text-gray-500">{announcement.date}</p>
+                  <p className="text-sm text-gray-500">{announcement.date.split('T')[0]}</p>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {announcement.message}
+                  </p>
+                 
                 </div>
               </div>
             ))}

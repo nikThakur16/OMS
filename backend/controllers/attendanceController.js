@@ -145,7 +145,7 @@ exports.getEmployeeDashboardData = async (req, res) => {
 
 // ✅ UPDATE ATTENDANCE (Check-in, Check-out, Break, Resume)
 exports.updateAttendance = async (req, res) => {
-  const { type, checkInTime, checkOutTime ,backTime} = req.body;
+  const { type, checkInTime, checkOutTime, backTime } = req.body;
   const employeeId = req.user.id;
   let employeeName = req.user.name;
 
@@ -186,105 +186,113 @@ exports.updateAttendance = async (req, res) => {
 
     switch (type) {
       case "checkIn":
-  if (attendanceRecord) {
-    if (attendanceRecord.status === "Checked In") {
-      return res.status(400).json({ message: "Already checked in for today." });
-    }
-    if (!attendanceRecord.checkInTime) {
-      attendanceRecord.checkInTime = new Date(checkInTime);
-    }
-    attendanceRecord.status = "Checked In";
-    attendanceRecord.totalBreakTime = 0;
-    attendanceRecord.checkOutTime = null; // Reset checkOutTime on new check-in
-    attendanceRecord.currentBreakStartTime = null;
-  } else {
-    attendanceRecord = new Attendance({
-      employeeId,
-      employeeName,
-      date: today,
-      checkInTime: new Date(checkInTime),  // <-- Always parse to Date object
-      status: "Checked In",
-      totalBreakTime: 0,
-      currentBreakStartTime: null,
-    });
-  }
-  break;
+        if (!attendanceRecord) {
+          attendanceRecord = new Attendance({
+            employeeId,
+            employeeName,
+            date: today,
+            sessions: [{ checkIn: new Date(checkInTime), checkOut: null }],
+            status: "Checked In",
+            totalBreakTime: 0,
+            currentBreakStartTime: null,
+          });
+        } else {
+          // Prevent check-in if last session is not checked out
+          const lastSession =
+            attendanceRecord.sessions?.[attendanceRecord.sessions.length - 1];
+          if (lastSession && !lastSession.checkOut) {
+            return res
+              .status(400)
+              .json({ message: "Already checked in. Please check out first." });
+          }
+          attendanceRecord.sessions.push({
+            checkIn: new Date(checkInTime),
+            checkOut: null,
+          });
+          attendanceRecord.status = "Checked In";
+        }
+        break;
 
+      case "checkOut":
+        if (!attendanceRecord || !attendanceRecord.sessions?.length) {
+          return res.status(400).json({ message: "Not checked in for today." });
+        }
+        // Find the last session without checkOut
+        const lastSession =
+          attendanceRecord.sessions[attendanceRecord.sessions.length - 1];
+        if (!lastSession || lastSession.checkOut) {
+          return res
+            .status(400)
+            .json({ message: "No active session to check out from." });
+        }
+        lastSession.checkOut = new Date(checkOutTime);
+        attendanceRecord.status = "Checked Out";
 
-  case "checkOut":
-    if (!attendanceRecord || !attendanceRecord.checkInTime || attendanceRecord.status === "Checked Out") {
-      return res.status(400).json({ message: "Not checked in or already checked out for today." });
-    }
-  
-    if (attendanceRecord.status === "onBreak" && attendanceRecord.currentBreakStartTime) {
-      const breakStartTime = new Date(attendanceRecord.currentBreakStartTime);
-      const breakDuration = (new Date() - breakStartTime) / 1000;
-      attendanceRecord.totalBreakTime += breakDuration;                                                                                                                                                                                                                  
-      attendanceRecord.currentBreakStartTime = null;
-    }
-  
-    attendanceRecord.checkOutTime = new Date(checkOutTime);
-  
-    const checkInDateTime = new Date(attendanceRecord.checkInTime);
-    const checkOutDateTime = new Date(checkOutTime);
-    const totalBreak = attendanceRecord.totalBreakTime || 0;
-  
-    const totalSeconds = (checkOutDateTime - checkInDateTime) / 1000;
-    let workingHoursInSeconds = totalSeconds - totalBreak;
-  
-    const standardWorkDaySeconds = 8 * 60 * 60;
-    let overtimeInSeconds = 0;
-  
-    if (workingHoursInSeconds > standardWorkDaySeconds) {
-      overtimeInSeconds = workingHoursInSeconds - standardWorkDaySeconds;
-      workingHoursInSeconds = standardWorkDaySeconds;
-    }
-  
-    attendanceRecord.workingHours = Math.max(0, workingHoursInSeconds);
-    attendanceRecord.breakTime = attendanceRecord.totalBreakTime || 0;
-    attendanceRecord.overtime = Math.max(0, overtimeInSeconds);
-  
-    attendanceRecord.status = "Checked Out";
-    attendanceRecord.totalBreakTime = 0;
-    attendanceRecord.currentBreakStartTime = null;
-  
-    await attendanceRecord.save();
-    break;
-    case "onBreak":
-      if (!attendanceRecord || attendanceRecord.status !== "Checked In") {
-        return res.status(400).json({
-          message: "Cannot take a break. Please check in first or resume work.",
-        });
-      }
-    
-      if (attendanceRecord.currentBreakStartTime) {
-        return res.status(400).json({ message: "Already on a break." });
-      }
-    
-      // Store epoch ms timestamp instead of Date object
-      attendanceRecord.currentBreakStartTime = Date.now();  // <-- fixed here ✅
-      attendanceRecord.status = "onBreak";
-      break;
-    
+        // Calculate total working seconds for all sessions
+        let totalSeconds = 0;
+        for (const session of attendanceRecord.sessions) {
+          if (session.checkIn && session.checkOut) {
+            totalSeconds +=
+              (new Date(session.checkOut) - new Date(session.checkIn)) / 1000;
+          }
+        }
 
+        // Subtract total break time (in seconds)
+        const breakSeconds = attendanceRecord.totalBreakTime || 0;
+        let netWorkingSeconds = totalSeconds - breakSeconds;
+        if (netWorkingSeconds < 0) netWorkingSeconds = 0;
 
-  
-case "back":
-  if (!attendanceRecord || attendanceRecord.status !== "onBreak") {
-    return res.status(400).json({ message: "Not on a break to resume work." });
-  }
-  if (!attendanceRecord.currentBreakStartTime) {
-    return res.status(400).json({ message: "Break start time not recorded." });
-  }const breakEnd = new Date(backTime);
-  const breakStart = new Date(attendanceRecord.currentBreakStartTime);
-  const breakDuration = (breakEnd - breakStart) / 1000;
-  
-  attendanceRecord.totalBreakTime = (attendanceRecord.totalBreakTime || 0) + breakDuration;
-  attendanceRecord.currentBreakStartTime = null;
-  attendanceRecord.status = "Checked In";
-  await attendanceRecord.save();
-  break;
+        attendanceRecord.workingHours = netWorkingSeconds;
 
+        // Optionally, calculate overtime (e.g., if standard workday is 8 hours = 28800 seconds)
+        const standardWorkdaySeconds = 8 * 3600;
+        attendanceRecord.overtime =
+          netWorkingSeconds > standardWorkdaySeconds
+            ? netWorkingSeconds - standardWorkdaySeconds
+            : 0;
+
+        // You can also update other fields as needed here
+
+        break;
+
+      case "onBreak":
+        if (!attendanceRecord || attendanceRecord.status !== "Checked In") {
+          return res.status(400).json({
+            message:
+              "Cannot take a break. Please check in first or resume work.",
+          });
+        }
+
+        if (attendanceRecord.currentBreakStartTime) {
+          return res.status(400).json({ message: "Already on a break." });
+        }
+
+        // Store epoch ms timestamp instead of Date object
+        attendanceRecord.currentBreakStartTime = Date.now(); // <-- fixed here ✅
+        attendanceRecord.status = "onBreak";
+        break;
+
+      case "back":
+        if (!attendanceRecord || attendanceRecord.status !== "onBreak") {
+          return res
+            .status(400)
+            .json({ message: "Not on a break to resume work." });
+        }
+        if (!attendanceRecord.currentBreakStartTime) {
+          return res
+            .status(400)
+            .json({ message: "Break start time not recorded." });
+        }
+        const breakEnd = new Date(backTime);
+        const breakStart = new Date(attendanceRecord.currentBreakStartTime);
+        const breakDuration = (breakEnd - breakStart) / 1000;
+
+        attendanceRecord.totalBreakTime =
+          (attendanceRecord.totalBreakTime || 0) + breakDuration;
+        attendanceRecord.currentBreakStartTime = null;
+        attendanceRecord.status = "Checked In";
+        await attendanceRecord.save();
+        break;
 
       default:
         return res

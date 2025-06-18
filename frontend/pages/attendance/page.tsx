@@ -20,7 +20,9 @@ const Page = ({ height }: PageProps) => {
     data: attendanceData,
     isLoading,
     error,
-  } = useGetAllAttendanceQuery(getTodayDateParam());
+  } = useGetAllAttendanceQuery(getTodayDateParam(), {
+    pollingInterval: 60 * 1000, // Poll every 60 seconds
+  });
 
 
 

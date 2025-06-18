@@ -1,3 +1,5 @@
+import dayjs from "@/utils/dayjs"; // Use your custom dayjs import
+
 export const getTodayDateParam = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -25,3 +27,15 @@ export const getTodayDateParam = () => {
     });
   };
   
+  // Converts a UTC ISO string to the user's local time and formats it
+  export const formatToLocalTime = (isoString: string, format = "YYYY-MM-DD hh:mm:ss A") => {
+    return dayjs(isoString).local().format(format);
+  };
+  
+  export const formatToUserTimeZone = (
+    isoString: string,
+    timeZone: string,
+    format = "hh:mm A"
+  ) => {
+    return dayjs(isoString).tz(timeZone).format(format);
+  };
