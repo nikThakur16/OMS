@@ -47,7 +47,10 @@ export function useLiveWorkingTimeFromSessions(
       let total = 0;
       for (const session of sessions) {
         if (session.checkIn && session.checkOut) {
-          total += (new Date(session.checkOut).getTime() - new Date(session.checkIn).getTime()) / 1000;
+          total +=
+            (new Date(session.checkOut).getTime() -
+              new Date(session.checkIn).getTime()) /
+            1000;
         }
       }
       return total;

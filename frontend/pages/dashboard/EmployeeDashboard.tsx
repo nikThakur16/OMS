@@ -3,12 +3,21 @@
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { getTodayDateParam ,formatDuration, formatTime } from "@/utils/Time&Date";
+import {
+  getTodayDateParam,
+  formatDuration,
+  formatTime,
+} from "@/utils/Time&Date";
 import { useLiveWorkingTimeFromSessions } from "@/utils/hooks/LiveWorkingHours";
 import { useLiveBreakTime } from "@/utils/hooks/LiveBreakingHours";
 import { useRef, useEffect } from "react";
 import io, { Socket } from "socket.io-client";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
+import {
+  EmployeeAnnouncementToast,
+  AdminAnnouncementToast,
+  HRAnnouncementToast,
+} from "@/components/toasts/AnnouncementToasts";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -26,10 +35,11 @@ import {
 import {
   useUpdateAttendanceMutation,
   useGetEmployeeAttendanceByIdQuery,
-useGetAnnouncementsQuery,
+  useGetAnnouncementsQuery,
   useGetEmployeeDashboardQuery,
 } from "@/store/api";
 import { formatToUserTimeZone } from "@/utils/Time&Date";
+import AnnoucementsCard from "@/components/annoucements/AnnoucementsCard";
 
 type Announcement = {
   title: string;
@@ -39,13 +49,9 @@ type Announcement = {
 };
 
 const EmployeeDashboard = () => {
-  // const user = localStorage.getItem("user");
-  // const loggedInEmployeeId = user ? JSON.parse(user)?.id : null;
-  const [breakTime, setBreakTime] = useState<any>(null);
   const loggedUser = useAppSelector((state) => state?.login?.user);
-  console.log("===========================================",loggedUser)
+  console.log("===========================================", loggedUser);
 
-  const [backTime, setBackTime] = useState<any>(null);
   // --- Mock User Data & Attendance State ---
   const [triggerUpdateAttendance, { isLoading: isUpdatingAttendance }] =
     useUpdateAttendanceMutation();
@@ -53,8 +59,6 @@ const EmployeeDashboard = () => {
   const [attendanceStatus, setAttendanceStatus] = useState<
     "notCheckedIn" | "checkedIn" | "onBreak" | "checkedOut"
   >(() => (localStorage.getItem("status") as any) ?? "notCheckedIn");
-  const [employeeData, setEmployeeData] = useState<any>(null); // State to hold employee data
-
 
   const [userAttendance, setUserAttendance] = useState({
     name: "Loading...", // Default for display
@@ -81,8 +85,6 @@ const EmployeeDashboard = () => {
     },
   });
 
-
-  const loggedInEmployeeId = loggedUser?.id || null; // Get the logged-in employee ID from the user state
   const {
     data: employeeAttendanceRecords,
     isLoading: isFetchingAttendance,
@@ -93,7 +95,7 @@ const EmployeeDashboard = () => {
     date: getTodayDateParam(),
   });
 
-const {
+  const {
     data: announcementsData,
     isLoading: isFetchingAnnouncements,
     error: fetchAnnouncementsError,
@@ -107,7 +109,7 @@ const {
     refetch: refetchEmployeeDashboard,
   } = useGetEmployeeDashboardQuery();
   const personalDetails = EmployeeeData?.user?.personalDetails || {};
-  const AttendanceData=EmployeeeData?.attendance || {};
+  const AttendanceData = EmployeeeData?.attendance || {};
 
   const liveTime = useLiveWorkingTimeFromSessions(
     AttendanceData?.sessions,
@@ -116,15 +118,12 @@ const {
   );
   const liveBreak = useLiveBreakTime(AttendanceData.currentBreakStartTime);
 
-  
-
-useEffect(() => {
-  console.log("EmployeeeData: ", EmployeeeData);
-  console.log("=-============================",announcementsData) 
-  console.log("Error: ", error);
-  console.log("Loading: ", isLoading);
-}, [EmployeeeData, error, isLoading]);
-
+  useEffect(() => {
+    console.log("EmployeeeData: ", EmployeeeData);
+    console.log("=-============================", announcementsData);
+    console.log("Error: ", error);
+    console.log("Loading: ", isLoading);
+  }, [EmployeeeData, error, isLoading]);
 
   useEffect(() => {
     if (employeeAttendanceRecords && employeeAttendanceRecords.length > 0) {
@@ -135,99 +134,92 @@ useEffect(() => {
       ) {
         const personalDetails = todayRecord.employeeId.personalDetails;
         const employmentId = todayRecord.employeeId?._id; // Access employmentDetails from the populated object
-
-        
-      
       }
     }
   }, [employeeAttendanceRecords]);
 
+  // Helper to format duration (for UI only)
 
-// Helper to format duration (for UI only)
+  // --- Handlers for Check In/Out Actions ---
 
-// --- Handlers for Check In/Out Actions ---
+  const handleCheckIn = async () => {
+    const currentTime = Date.now(); // send full ISO date
 
-const handleCheckIn = async () => {
-  const currentTime = Date.now() // send full ISO date
+    try {
+      await triggerUpdateAttendance({
+        type: "checkIn",
+        checkInTime: currentTime,
+      }).unwrap();
 
-  try {
-    await triggerUpdateAttendance({
-      type: "checkIn",
-      checkInTime: currentTime,
-    }).unwrap();
+      setAttendanceStatus("checkedIn");
+      localStorage.setItem("status", "checkedIn");
+      refetchEmployeeDashboard();
+    } catch (error) {
+      console.error("Check-in failed:", error);
+    }
+  };
 
-    setAttendanceStatus("checkedIn");
-    localStorage.setItem("status", "checkedIn");
-    refetchEmployeeDashboard();
-  } catch (error) {
-    console.error("Check-in failed:", error);
-  }
-};
+  const handleCheckOut = async () => {
+    const currentTime = Date.now(); // Get current time in milliseconds
 
-const handleCheckOut = async () => {
-  const currentTime = Date.now(); // Get current time in milliseconds
-  
- if(AttendanceData.status === "onBreak") {
-  // If currently on break, handle back to work first
-    await handleBack();
-  } else if (AttendanceData.status === "notCheckedIn") {
-    // If not checked in, handle check-in first
-    await handleCheckIn();
- }
+    if (AttendanceData.status === "onBreak") {
+      // If currently on break, handle back to work first
+      await handleBack();
+    } else if (AttendanceData.status === "notCheckedIn") {
+      // If not checked in, handle check-in first
+      await handleCheckIn();
+    }
 
-  try {
-    await triggerUpdateAttendance({
-      type: "checkOut",
-     
-      checkOutTime: currentTime,
-    }).unwrap();
+    try {
+      await triggerUpdateAttendance({
+        type: "checkOut",
 
-    setAttendanceStatus("checkedOut");
-    localStorage.setItem("status", "checkedOut");
-    refetchEmployeeDashboard();
-  } catch (error) {
-    console.error("Check-out failed:", error);
-  }
-};
+        checkOutTime: currentTime,
+      }).unwrap();
 
-const handleBreak = async () => {
-  const currentTime = Date.now()
- 
-  setBreakTime(currentTime); // store ISO time for break start
+      setAttendanceStatus("checkedOut");
+      localStorage.setItem("status", "checkedOut");
+      refetchEmployeeDashboard();
+    } catch (error) {
+      console.error("Check-out failed:", error);
+    }
+  };
 
-  try {
-    await triggerUpdateAttendance({ type: "onBreak" }).unwrap();
-  
+  const handleBreak = async () => {
+    const currentTime = Date.now();
 
-    localStorage.setItem("status", "onBreak");
-    setAttendanceStatus("onBreak");
-  } catch (error) {
-    console.error("Break failed:", error);
-  }
-};
+    try {
+      await triggerUpdateAttendance({ type: "onBreak" }).unwrap();
 
-const handleBack = async () => {
-  const currentTime = Date.now()
-  setBackTime(currentTime);
+      localStorage.setItem("status", "onBreak");
+      setAttendanceStatus("onBreak");
+    } catch (error) {
+      console.error("Break failed:", error);
+    }
+  };
 
- 
+  const handleBack = async () => {
+    const currentTime = Date.now();
 
-  try {
-    await triggerUpdateAttendance({ type: "back" ,backTime:currentTime }).unwrap();
+    try {
+      await triggerUpdateAttendance({
+        type: "back",
+        backTime: currentTime,
+      }).unwrap();
 
-    localStorage.setItem("status", "checkedIn");
-    setAttendanceStatus("checkedIn");
-  } catch (error) {
-    console.error("Back to work failed:", error);
-  }
-};
+      localStorage.setItem("status", "checkedIn");
+      setAttendanceStatus("checkedIn");
+    } catch (error) {
+      console.error("Back to work failed:", error);
+    }
+  };
 
-// Get today's date (for UI display only)
-const getTodayDate = () => {
-  return dayjs().tz("Asia/Kolkata").format("DD/MM/YYYY");
-};
+  // Get today's date (for UI display only)
+  const getTodayDate = () => {
+    return dayjs().tz("Asia/Kolkata").format("DD/MM/YYYY");
+  };
   // --- Mock data for Sections ---
- 
+
   const monthlyHoursData = [
     { name: "Week 1", hours: 40 },
     { name: "Week 2", hours: 38 },
@@ -278,12 +270,7 @@ const getTodayDate = () => {
     { id: 3, name: "Afsan R.", avatar: "/images/cat.jpg", status: "online" },
     { id: 4, name: "Wasif Omee", avatar: "/images/cat.jpg", status: "away" },
   ];
-  useEffect(() => {
-    const stored = localStorage.getItem("status") as any;
-    if (stored) {
-      setAttendanceStatus(stored);
-    }
-  }, []);
+
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; // Get user's time zone
 
   // Find the latest session with a checkOut time
@@ -291,16 +278,20 @@ const getTodayDate = () => {
     ? AttendanceData.sessions
         .filter((s: any) => s.checkOut)
         .reduce((latest: any, session: any) => {
-          if (!latest || new Date(session.checkOut) > new Date(latest.checkOut)) {
+          if (
+            !latest ||
+            new Date(session.checkOut) > new Date(latest.checkOut)
+          ) {
             return session;
           }
           return latest;
         }, null)
     : null;
 
-  const lastSession = AttendanceData.sessions && AttendanceData.sessions.length
-    ? AttendanceData.sessions[AttendanceData.sessions.length - 1]
-    : null;
+  const lastSession =
+    AttendanceData.sessions && AttendanceData.sessions.length
+      ? AttendanceData.sessions[AttendanceData.sessions.length - 1]
+      : null;
 
   const latestCheckOutDisplay =
     lastSession && !lastSession.checkOut
@@ -309,34 +300,34 @@ const getTodayDate = () => {
       ? formatToUserTimeZone(latestCheckOutSession.checkOut, userTimeZone)
       : "---";
 
-  const socketRef = useRef<Socket | null>(null);
-  useEffect(() => {
-    if (!socketRef.current) {
-      socketRef.current = io("http://localhost:5000");
-      console.log("Socket.IO client connected!");
+  const socket = io("http://localhost:5000");
+
+  const handleNewAnnouncement = (announcement: Announcement) => {
+    toast.dismiss(); // Close any open toasts
+    // You can use announcement.createdBy.role if your backend populates it
+    if (loggedUser?.role === "Admin") {
+      toast((props) => <AdminAnnouncementToast {...props} announcement={announcement} />);
+    } else if (loggedUser?.role === "HR") {
+      toast((props) => <HRAnnouncementToast {...props} announcement={announcement} />);
+    } else {
+      toast((props) => <EmployeeAnnouncementToast {...props} announcement={announcement} />);
     }
+    refetchAnnouncements();
+  };
+
+  useEffect(() => {
+    socket.on("new-announcement", handleNewAnnouncement);
     return () => {
-      if (socketRef.current) socketRef.current.disconnect();
+      socket.off("new-announcement", handleNewAnnouncement);
     };
   }, []);
 
   useEffect(() => {
-    if (!socketRef.current) return;
-    const handleNewAnnouncement = (announcement: Announcement) => {
-      setTimeout(() => {
-        refetchAnnouncements().then((res) => {
-          console.log("Refetched announcements:", res);
-        });
-      }, 200);
-      toast.success("New Announcement: " + announcement.title);
-    };
-    socketRef.current.on("new-announcement", handleNewAnnouncement);
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.off("new-announcement", handleNewAnnouncement);
-      }
-    };
-  }, [refetchAnnouncements, loggedUser]);
+    const stored = localStorage.getItem("status") as any;
+    if (stored) {
+      setAttendanceStatus(stored);
+    }
+  }, []);
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-theme('spacing.6'))] p-6 bg-gray-50">
@@ -360,8 +351,7 @@ const getTodayDate = () => {
               </div>
               <div>
                 <h2 className="font-bold text-3xl mb-1">
-                  {personalDetails.firstName}{" "}
-                  {personalDetails.lastName}
+                  {personalDetails.firstName} {personalDetails.lastName}
                 </h2>
                 <p className="text-lg opacity-90">{personalDetails?.role}</p>
               </div>
@@ -453,9 +443,7 @@ const getTodayDate = () => {
               </svg>
             </div>
             <p className="text-sm opacity-90 mb-2">Current Status</p>
-            <h3 className="font-bold text-2xl mb-4">
-              {AttendanceData.status}
-            </h3>
+            <h3 className="font-bold text-2xl mb-4">{AttendanceData.status}</h3>
             <div className="space-y-2 w-full mt-6">
               {(attendanceStatus === "checkedOut" ||
                 attendanceStatus === "notCheckedIn") && (
@@ -517,13 +505,18 @@ const getTodayDate = () => {
             </div>
             <p className="text-sm text-gray-600 mb-2"></p>
             <h3 className="font-bold text-2xl text-[#034F75]">
-            {AttendanceData.status==='onBreak'&&(liveBreak)}
-            {AttendanceData.status==='Checked In'&&(liveTime)}
-            {AttendanceData.status==='Checked Out'&&(formatDuration(AttendanceData?.workingHours))}
-              
+              {AttendanceData.status === "onBreak" && liveBreak}
+              {AttendanceData.status === "Checked In" && liveTime}
+              {AttendanceData.status === "Checked Out" &&
+                formatDuration(AttendanceData?.workingHours)}
             </h3>
             <p className="text-xs text-gray-500 mt-3">
-              In: {formatToUserTimeZone(AttendanceData.sessions?.[0].checkIn, userTimeZone)|| "N/A"} | Out: {latestCheckOutDisplay}
+              In:{" "}
+              {formatToUserTimeZone(
+                AttendanceData.sessions?.[0].checkIn,
+                userTimeZone
+              ) || "N/A"}{" "}
+              | Out: {latestCheckOutDisplay}
             </p>
           </div>
         </div>
@@ -795,49 +788,35 @@ const getTodayDate = () => {
         </div>
 
         {/* Company Announcements (Retained & Enhanced) */}
-        <div className="bg-white rounded-xl shadow-md p-6 transform hover:scale-[1.005] transition-transform duration-300">
-          <h3 className="font-bold text-xl mb-4 text-[#034F75]">
-            Company Announcements
-          </h3>
-          <div className="space-y-4 max-h-64 overflow-y-auto scrollbar-hide">
-            {announcementsData?.map((announcement) => (
-              <div
-                key={announcement._id}
-                className="flex items-start space-x-4 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0"
-              >
-                <div className="w-10 h-10 flex-shrink-0 bg-blue-100 rounded-md flex items-center justify-center transform transition-transform hover:rotate-3 duration-200">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 text-[#034F75]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                </div>
-                <div className="w-full">
-                  <div className="flex items-center justify-between mb-2"> 
-                  <h4 className="font-semibold text-gray-800">
-                    {announcement.title}
-                  </h4>
-                  <p className="text-sm text-gray-500">{announcement.date.split('T')[0]}</p>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    {announcement.message}
-                  </p>
-                 
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <AnnoucementsCard/>
       </div>
+      <button
+  onClick={() => {
+    toast.dismiss(); // Close any open toasts
+    const testAnnouncement = {
+      
+      title: "Test Announcement",
+      message: "This is a test notification ",
+      createdBy: { role: "HR" }, // Change role to "HR" or "Employee" to test other toasts
+    };
+   
+    if (loggedUser?.role === "Admin") {
+      
+      toast((props) => <AdminAnnouncementToast {...props} announcement={testAnnouncement} />);
+    } else if (loggedUser?.role === "HR") {
+      
+      toast((props) => <HRAnnouncementToast {...props} announcement={testAnnouncement} />);
+    } else {
+      
+      toast((props) => <EmployeeAnnouncementToast {...props} announcement={testAnnouncement} />);
+    }
+  }}
+  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+>
+  Show Test Toast
+</button>
+    
+     
     </div>
   );
 };

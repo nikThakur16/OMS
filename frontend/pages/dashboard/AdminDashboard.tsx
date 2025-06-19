@@ -1,7 +1,8 @@
 import EmployeeDtsCard from "@/components/comman/Cards/EmployeeDtsCard"
 import DepartmentCard from "@/components/comman/Cards/DepartmentCard"
 import Attendance from "@/pages/attendance/page"
-import AnnouncementCard from "@/components/annoucements/AnnouncementCard"
+import AnnouncementForm from "@/components/annoucements/AnnouncementForm"
+import AnnoucementsCard from "@/components/annoucements/AnnoucementsCard"
 
 const page = () => {
   return (
@@ -12,22 +13,22 @@ const page = () => {
         
         <EmployeeDtsCard />
         
-  <AnnouncementCard/>
+  <AnnouncementForm/>
         
         
       </div>
-      <div className="flex gap-3">
+      <div className="grid  gap-3">
         <DepartmentCard/>
         <DepartmentCard/>
         <DepartmentCard/>
-        <DepartmentCard/>
-        <DepartmentCard/>
+   
+      <AnnoucementsCard/>
      
 
       </div>
 
       <Attendance height="max-h-[37vh]"  />
-      {/* You can add more components here as needed */}
+   
 
     </div>
   )

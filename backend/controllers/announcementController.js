@@ -1,4 +1,4 @@
-const Announcement = require('../models/Announcement');
+const Announcement = require("../models/Announcement");
 
 exports.createAnnouncement = async (req, res) => {
   try {
@@ -12,10 +12,10 @@ exports.createAnnouncement = async (req, res) => {
     await announcement.save();
 
     // Emit to all connected clients via Socket.IO
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     if (io) {
       console.log("Emitting new-announcement:", announcement);
-      io.emit('new-announcement', announcement);
+      io.emit("new-announcement", await announcement.populate("createdBy", "personalDetails role"));
     }
 
     res.status(201).json(announcement);
@@ -28,11 +28,10 @@ exports.getAnnouncements = async (req, res) => {
   try {
     const userRole = req.user.personalDetails.role;
     const announcements = await Announcement.find({
-      $or: [
-        { targetRoles: "all" },
-        { targetRoles: userRole }
-      ]
-    }).sort({ date: -1 }).populate('createdBy', 'personalDetails');
+      $or: [{ targetRoles: "all" }, { targetRoles: userRole }],
+    })
+      .sort({ date: -1 })
+      .populate("createdBy", "personalDetails");
     res.json(announcements);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -43,7 +42,7 @@ exports.deleteAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
     await Announcement.findByIdAndDelete(id);
-    res.json({ message: 'Announcement deleted' });
+    res.json({ message: "Announcement deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -3,13 +3,8 @@
 import { useEffect, useState } from "react";
 
 import { useGetAllAttendanceQuery } from "@/store/api";
-import {
-  getTodayDateParam,
-  formatDuration,
-  formatTime,
-} from "@/utils/Time&Date";
+import { getTodayDateParam } from "@/utils/Time&Date";
 import AttendanceRow from "@/components/attendance/AttendanceRow";
-
 
 interface PageProps {
   height?: string;
@@ -23,8 +18,6 @@ const Page = ({ height }: PageProps) => {
   } = useGetAllAttendanceQuery(getTodayDateParam(), {
     pollingInterval: 60 * 1000, // Poll every 60 seconds
   });
-
-
 
   return (
     <div className="bg-white text-[#034F75] max-h-[50vh] rounded-md shadow-md p-6">

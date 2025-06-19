@@ -1,17 +1,17 @@
 // store.ts
-import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import storage from 'redux-persist/lib/storage';       // localStorage
-import { persistReducer, persistStore } from 'redux-persist';
+import { configureStore, combineReducers } from "@reduxjs/toolkit";
+import storage from "redux-persist/lib/storage"; // localStorage
+import { persistReducer, persistStore } from "redux-persist";
 
-import { api } from './api';
-import SearchSlice from '../reducers/search/SearchSlice';
-import LoginSlice from '../reducers/auth/LoginSlice';
+import { api } from "./api";
+import SearchSlice from "../reducers/search/SearchSlice";
+import LoginSlice from "../reducers/auth/LoginSlice";
 
 // 1. Set up persist config to only save user-login info
 const persistConfig = {
-  key: 'root',
+  key: "root",
   storage,
-  whitelist: ['login'],  // persist only login slice
+  whitelist: ["login"], // persist only login slice
 };
 
 // 2. Combine reducers
@@ -28,8 +28,7 @@ const persistedReducer = persistReducer(persistConfig, rootReducer);
 export const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({ serializableCheck: false })
-      .concat(api.middleware),
+    getDefaultMiddleware({ serializableCheck: false }).concat(api.middleware),
 });
 
 export const persistor = persistStore(store);

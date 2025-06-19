@@ -11,22 +11,37 @@ body {
 
 /* For Firefox */
 .scrollbar-hide {
-  scrollbar-width: none;  /* Firefox */
+  scrollbar-width: none; /* Firefox */
 }
 
 /* For IE and Edge (older versions) */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
+  -ms-overflow-style: none; /* IE and Edge */
 }
-        /* In your global CSS file, e.g., frontend/app/globals.css */
-        @keyframes pulse-slow {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: .4;
-          }
-        }
-        .animate-pulse-slow {
-          animation: pulse-slow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
+/* In your global CSS file, e.g., frontend/app/globals.css */
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+.animate-pulse-slow {
+  animation: pulse-slow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+
+@keyframes zoom {
+  0%   { transform: scale(0.4); opacity: 0; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+
+.Toastify__toast-container {
+  right: 0 !important;
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+  top: 1rem !important;
+}

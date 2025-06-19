@@ -1,10 +1,17 @@
 import React from "react";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import { useCreateAnnouncementMutation } from "@/store/api";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
+import { AdminAnnouncementToast } from "@/components/toasts/AnnouncementToasts";
 
 const roles = ["Employee", "HR", "Admin", "all"];
+
+type AnnouncementFormValues = {
+  title: string;
+  message: string;
+  targetRoles: string[];
+};
 
 const AnnouncementSchema = Yup.object().shape({
   title: Yup.string().required("Title is required"),
@@ -25,7 +32,7 @@ const AnnouncementCard = () => {
         </svg>
       </div>
       <h3 className="text-[#0a466b] font-semibold text-lg mb-2">Create Announcement</h3>
-      <Formik
+      <Formik<AnnouncementFormValues>
         initialValues={{
           title: "",
           message: "",
@@ -35,7 +42,16 @@ const AnnouncementCard = () => {
         onSubmit={async (values, { resetForm }) => {
           try {
             await createAnnouncement(values).unwrap();
-            toast.success("Announcement posted successfully!");
+            toast((props) => (
+              <AdminAnnouncementToast
+                {...props}
+                announcement={{
+                  title: "Announcement posted successfully!",
+                  message: values.title,
+                  createdBy: { role: "Admin" }
+                }}
+              />
+            ));
             resetForm();
           } catch (err) {
             toast.error("Failed to post announcement.");
