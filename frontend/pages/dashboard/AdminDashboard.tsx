@@ -17,12 +17,15 @@ const page = () => {
         
         
       </div>
-      <div className="grid  gap-3">
+      <div className="grid grid-cols-5 gap-x-10">
         <DepartmentCard/>
         <DepartmentCard/>
         <DepartmentCard/>
+        <div className="col-start-4 col-end-6 ">
+        <AnnoucementsCard/>
+        </div>
    
-      <AnnoucementsCard/>
+    
      
 
       </div>

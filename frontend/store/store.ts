@@ -1,37 +1,53 @@
 // store.ts
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
-import storage from "redux-persist/lib/storage"; // localStorage
 import { persistReducer, persistStore } from "redux-persist";
-
 import { api } from "./api";
 import SearchSlice from "../reducers/search/SearchSlice";
 import LoginSlice from "../reducers/auth/LoginSlice";
 
-// 1. Set up persist config to only save user-login info
-const persistConfig = {
-  key: "root",
-  storage,
-  whitelist: ["login"], // persist only login slice
+const createNoopStorage = () => {
+  return {
+    getItem(_key: string) {
+      return Promise.resolve(null);
+    },
+    setItem(_key: string, value: any) {
+      return Promise.resolve(value);
+    },
+    removeItem(_key: string) {
+      return Promise.resolve();
+    },
+  };
 };
 
-// 2. Combine reducers
 const rootReducer = combineReducers({
   [api.reducerPath]: api.reducer,
   search: SearchSlice,
   login: LoginSlice,
 });
 
-// 3. Wrap with persistReducer
+const isServer = typeof window === "undefined";
+const storage = isServer
+  ? createNoopStorage()
+  : require("redux-persist/lib/storage").default;
+
+const persistConfig = {
+  key: "root",
+  storage,
+  whitelist: ["login"],
+};
+
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
-// 4. Configure store with persistor and RTK Query middleware
 export const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }).concat(api.middleware),
 });
 
-export const persistor = persistStore(store);
+export let persistor: ReturnType<typeof persistStore> | undefined = undefined;
+if (!isServer) {
+  persistor = persistStore(store);
+}
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

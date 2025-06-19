@@ -306,11 +306,17 @@ const EmployeeDashboard = () => {
     toast.dismiss(); // Close any open toasts
     // You can use announcement.createdBy.role if your backend populates it
     if (loggedUser?.role === "Admin") {
-      toast((props) => <AdminAnnouncementToast {...props} announcement={announcement} />);
+      toast((props) => (
+        <AdminAnnouncementToast {...props} announcement={announcement} />
+      ));
     } else if (loggedUser?.role === "HR") {
-      toast((props) => <HRAnnouncementToast {...props} announcement={announcement} />);
+      toast((props) => (
+        <HRAnnouncementToast {...props} announcement={announcement} />
+      ));
     } else {
-      toast((props) => <EmployeeAnnouncementToast {...props} announcement={announcement} />);
+      toast((props) => (
+        <EmployeeAnnouncementToast {...props} announcement={announcement} />
+      ));
     }
     refetchAnnouncements();
   };
@@ -327,6 +333,20 @@ const EmployeeDashboard = () => {
     if (stored) {
       setAttendanceStatus(stored);
     }
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchAnnouncements();
+    }, 5000); // every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    socket.on("announcementDeleted", () => {
+      refetchAnnouncements();
+    });
+    return () => socket.off("announcementDeleted");
   }, []);
 
   return (
@@ -788,35 +808,41 @@ const EmployeeDashboard = () => {
         </div>
 
         {/* Company Announcements (Retained & Enhanced) */}
-      <AnnoucementsCard/>
+        <AnnoucementsCard />
       </div>
       <button
-  onClick={() => {
-    toast.dismiss(); // Close any open toasts
-    const testAnnouncement = {
-      
-      title: "Test Announcement",
-      message: "This is a test notification ",
-      createdBy: { role: "HR" }, // Change role to "HR" or "Employee" to test other toasts
-    };
-   
-    if (loggedUser?.role === "Admin") {
-      
-      toast((props) => <AdminAnnouncementToast {...props} announcement={testAnnouncement} />);
-    } else if (loggedUser?.role === "HR") {
-      
-      toast((props) => <HRAnnouncementToast {...props} announcement={testAnnouncement} />);
-    } else {
-      
-      toast((props) => <EmployeeAnnouncementToast {...props} announcement={testAnnouncement} />);
-    }
-  }}
-  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
->
-  Show Test Toast
-</button>
-    
-     
+        onClick={() => {
+          toast.dismiss(); // Close any open toasts
+          const testAnnouncement = {
+            title: "Test Announcement",
+            message: "This is a test notification ",
+            createdBy: { role: "HR" }, // Change role to "HR" or "Employee" to test other toasts
+          };
+
+          if (loggedUser?.role === "Admin") {
+            toast((props) => (
+              <AdminAnnouncementToast
+                {...props}
+                announcement={testAnnouncement}
+              />
+            ));
+          } else if (loggedUser?.role === "HR") {
+            toast((props) => (
+              <HRAnnouncementToast {...props} announcement={testAnnouncement} />
+            ));
+          } else {
+            toast((props) => (
+              <EmployeeAnnouncementToast
+                {...props}
+                announcement={testAnnouncement}
+              />
+            ));
+          }
+        }}
+        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+      >
+        Show Test Toast
+      </button>
     </div>
   );
 };
