@@ -1,4 +1,10 @@
-node_modules/
-.next/
-frontend.zip 
+# Dependencies
+**/node_modules/
 node_modules
+
+# Next.js build output
+.next/
+*/.next/
+
+# Other
+frontend.zip
