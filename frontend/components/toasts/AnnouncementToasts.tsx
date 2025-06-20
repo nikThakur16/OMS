@@ -18,7 +18,7 @@ export const EmployeeAnnouncementToast = ({
   <div
     className={`
      
-      flex items-center gap-6 p-4 bg-blue-900 border-l-4 w-[300px] border-blue-400 rounded-xl shadow-lg
+      flex items-center gap-6 p-4 bg-[#175075] border-l-4 w-[300px] border-blue-400 rounded-xl shadow-lg
     `}
   >
     <img className='rounded-lg h-10 w-10' src={messageIcon.src} alt="" />

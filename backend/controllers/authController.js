@@ -343,7 +343,7 @@ const forgotPassword = async (req, res) => {
     // In production, you should send this via email
     res.status(200).json({
       message: "Password reset token generated",
-      resetToken: resetToken // Remove this in production
+      // resetToken, // Remove this in production
     });
 
   } catch (err) {

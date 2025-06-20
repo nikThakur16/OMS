@@ -9,6 +9,10 @@ const authRoutes = require("./routes/authRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const userRoutes = require("./routes/userRoutes"); // Import your user routes
 const announcementRoutes = require("./routes/announcementRoutes"); // <-- Add this
+const taskRoutes = require("./routes/taskRoutes");
+const projectRoutes = require("./routes/projectRoutes");
+const teamRoutes = require("./routes/teamRoutes");
+const departmentRoutes = require("./routes/departmentRoutes");
 
 app.use(cookieParser());
 
@@ -31,6 +35,10 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/users", userRoutes); // Use the user routes
 app.use("/api/employeeDashboard", attendanceRoutes); // Use the attendance routes for employee dashboard
 app.use("/api/announcements", announcementRoutes); // <-- Add this
+app.use("/api/tasks", taskRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/teams", teamRoutes);
+app.use("/api/departments", departmentRoutes);
 
 // Connect to MongoDB
 mongoose

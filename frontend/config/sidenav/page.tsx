@@ -32,6 +32,11 @@ export const Admin = [
     path: "/admin/permissions",
   },
   {
+    title: "Tasks",
+    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/task.png" alt="task"/>,
+    path: "/admin/tasks",
+  },
+  {
     title: "Employees Management",
     icon: <img width="30" height="30" src="https://img.icons8.com/sf-regular-filled/48/FFFFFF/add-user-male--v2.png" alt="add-user-male--v2"/>,
     path: "/admin/register",
@@ -67,7 +72,11 @@ export const Employee = [
     icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/restriction-shield.png" alt="restriction-shield"/>,
     path: "/employee/permissions",
   },
- 
+  {
+    title: "Tasks",
+    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/task.png" alt="task"/>,
+    path: "/employee/tasks",
+  },
 ];
 
 
@@ -98,6 +107,11 @@ export const Hr = [
     title: "Permissions",
     icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/restriction-shield.png" alt="restriction-shield"/>,
     path: "/hr/permissions",
+  },
+  {
+    title: "Tasks",
+    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/task.png" alt="task"/>,
+    path: "/hr/tasks",
   },
   {
     title: "Employees Management",

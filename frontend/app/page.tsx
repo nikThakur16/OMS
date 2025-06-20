@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLoginMutation } from "@/store/api";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials, setUserData } from "@/reducers/auth/LoginSlice";
@@ -10,11 +10,27 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+ 
   const dispatch = useAppDispatch();
 
   const [login, { isLoading, error, data }] = useLoginMutation();
 
   const router = useRouter();
+
+  useEffect(() => {
+    
+      const token = localStorage.getItem("token");
+      const user = localStorage.getItem("user");
+      console.log("11111111111111111111111111",user)
+      if (token && user) {
+        const parsedUser = JSON.parse(user);
+        console.log("11111111111111111111111111",parsedUser)
+        if (parsedUser.role) {
+          router.replace(`/${parsedUser.role.toLowerCase()}/dashboard`);
+        }
+      }
+    
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); // Prevent default browser form submission
@@ -67,6 +83,8 @@ const LoginPage = () => {
       }
     }
   };
+
+  
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#E0F2F7]">

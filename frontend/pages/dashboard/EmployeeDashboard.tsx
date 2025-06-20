@@ -497,7 +497,7 @@ const EmployeeDashboard = () => {
               <button
                 onClick={handleCheckOut}
                 //   disabled={isCheckOutLoading}
-                className="bg-red-500 text-white px-4 py-2 rounded ml-2"
+                className="bg-red-500 text-white font-bold py-3 px-8 rounded-full text-md transition duration-300 ease-in-out w-full transform hover:scale-105 shadow-md"
               >
                 {/* {isCheckOutLoading ? "Checking Out..." : "Check Out"} */}
                 check out

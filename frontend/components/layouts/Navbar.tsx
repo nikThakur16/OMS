@@ -11,23 +11,28 @@ import {
 import _ from "lodash";
 import { useRouter } from "next/navigation"; // Adjust the import path as necessary
 import { useLogoutMutation } from "@/store/api";
-import { persistor } from "@/store/store"; // Import the persistor to clear persisted state
+
 
 const Navbar = () => {
   const dispatch = useAppDispatch();
   const [searchTerm, setSearchTerm] = useState("");
+  const [mounted, setMounted] = useState(false);
   const loggedUser = useAppSelector((state) => state?.login?.user);
   const router = useRouter();
   const [triggerLogout, { isLoading, error }] = useLogoutMutation();
 
   console.log("Logged User:", loggedUser);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const handleLogout = async () => {
     try {
       await triggerLogout().unwrap();
 
       dispatch(logout());
-      persistor.purge(); // clears persisted login data
+     
       router.push("/"); // Redirect to login page after logout
     } catch (err) {
       console.error("Failed to logout:", JSON.stringify(err, null, 2)); // Stringify the error object for full details
@@ -57,7 +62,9 @@ const Navbar = () => {
       </div>
       <div className="flex gap-4 items-center ">
         <h4 className="text-[#034F75]">
-          {loggedUser?.firstName} {loggedUser?.lastName}
+          {mounted && loggedUser
+            ? `${loggedUser.firstName} ${loggedUser.lastName}`
+            : ""}
         </h4>
         <button
           className="bg-white px-6 py-2 rounded-lg cursor-pointer "

@@ -38,7 +38,7 @@ export async function middleware(req: NextRequest) {
   try {
     const secretKey = new TextEncoder().encode(jwtSecret);
     const { payload } = await jwtVerify(token, secretKey);
-    const userRole = payload.user?.role?.toLowerCase();
+    const userRole = (payload as { user?: { role?: string } }).user?.role?.toLowerCase();
 
     if (userRole === baseSegment) {
       return NextResponse.next(); // Role is allowed

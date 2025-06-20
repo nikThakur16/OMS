@@ -30,7 +30,7 @@ const Sidebar = () => {
   
 
   return (
-    <div className=' flex flex-col bg-[#034F75] w-[17%] max-h-[100vh] rounded-[22px] items-center px-2 py-6'>
+    <div className=' flex flex-col bg-[#034F75] w-[17%] max-h-[100vh] rounded-[22px] pl-[35px] px-2 py-6'>
       <img className='h-14 w-[70%] ' src="https://softradix.com/wp-content/uploads/2022/07/main-logo.png" alt="" />
       <div className='flex flex-col  gap-8 pt-10 pl-2 text-white'>
         {data[role]?.map((item, index) => (

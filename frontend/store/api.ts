@@ -7,6 +7,7 @@ import {
   UpdateAttendancePayload,
   AttendanceMutationResponse,
 } from "@/types/attendance/page";
+import { Task } from "@/types/admin/task";
 
 // Optional: to support query string building
 interface GetEmployeeAttendanceParams {
@@ -29,7 +30,7 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ["Users", "Attendance", "Announcements"],
+  tagTypes: ["Users", "Attendance", "Announcements", "Tasks"],
 
   endpoints: (builder) => ({
     // USERS
@@ -142,6 +143,43 @@ export const api = createApi({
       }),
       invalidatesTags: ["Announcements"],
     }),
+
+    // TASKS
+    getTasks: builder.query<Task[], void>({
+      query: () => "api/tasks",
+      providesTags: ["Tasks"],
+    }),
+
+    getTaskById: builder.query<Task, string>({
+      query: (id) => `api/tasks/${id}`,
+      providesTags: (result, error, id) => [{ type: "Tasks", id }],
+    }),
+
+    createTask: builder.mutation<Task, Partial<Task>>({
+      query: (data) => ({
+        url: "api/tasks",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Tasks"],
+    }),
+
+    updateTask: builder.mutation<Task, { id: string; data: Partial<Task> }>({
+      query: ({ id, data }) => ({
+        url: `api/tasks/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["Tasks"],
+    }),
+
+    deleteTask: builder.mutation<{ message: string }, string>({
+      query: (id) => ({
+        url: `api/tasks/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Tasks"],
+    }),
   }),
 });
 
@@ -158,4 +196,9 @@ export const {
   useGetAnnouncementsQuery,
   useCreateAnnouncementMutation,
   useDeleteAnnouncementMutation,
+  useGetTasksQuery,
+  useGetTaskByIdQuery,
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
 } = api;
