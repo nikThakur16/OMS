@@ -3,7 +3,11 @@ const Department = require("../models/Department");
 // Create Department
 exports.createDepartment = async (req, res) => {
   try {
-    const department = new Department(req.body);
+    const organizationId = req.user.organizationId;
+    const department = new Department({
+      ...req.body,
+      organizationId, // Always use from authenticated user
+    });
     await department.save();
     res.status(201).json(department);
   } catch (err) {

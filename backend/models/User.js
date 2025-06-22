@@ -15,14 +15,11 @@ const userSchema = new mongoose.Schema({
 
     department: {
       type: String,
-      enum: [
-        'Sales', 'Marketing', 'ReactJS', 'NodeJS', 'Python', 'Java',
-        'ReactNative', 'Laravel', 'Other', 'Frontend', 'Backend', 'Fullstack',
-      ],
-      default: 'Other',
       required: true,
+      trim: true,
     },
   },
+  teams: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Team' }],
   organizationId: {
     type: mongoose.Schema.Types.ObjectId, // This field will store a MongoDB ObjectId
     required: true,                     // Every user must have an organizationId

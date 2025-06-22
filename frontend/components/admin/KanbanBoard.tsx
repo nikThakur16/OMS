@@ -1,6 +1,6 @@
 // MasterpieceKanban.tsx
 // The ultimate, memorable Kanban board component
-import React, { useState } from 'react';
+import React from 'react';
 import {
   DndContext,
   closestCenter,
@@ -14,193 +14,114 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
-  arrayMove,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiPlus, HiOutlineX, HiOutlinePencil, HiOutlineTrash, HiOutlineEye } from 'react-icons/hi';
+import { HiOutlineEye, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi';
+import { Task } from '@/types/admin/task';
 
-// Dummy data interfaces
-type Card = {
-  id: string;
-  title: string;
-  description: string;
-  assignees: { id: string; avatarUrl: string }[];
-  labels: { text: string; color: string }[];
-  dueDate: string;
-};
-type Column = { id: string; title: string; cardOrder: string[] };
-type BoardData = { columns: Column[]; cards: Record<string, Card> };
+// Card interface based on Task
+interface KanbanBoardProps {
+  tasks: Task[];
+  onDragEnd: (result: any) => void;
+  onView: (task: Task) => void;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+}
 
-// Dummy initial board
-const initialBoard: BoardData = {
-  columns: [
-    { id: 'backlog', title: 'Backlog', cardOrder: ['c1', 'c2'] },
-    { id: 'in-progress', title: 'In Progress', cardOrder: ['c3'] },
-    { id: 'done', title: 'Done', cardOrder: ['c4'] },
-  ],
-  cards: {
-    c1: {
-      id: 'c1', title: 'Research design patterns',
-      description: 'Investigate best UI patterns for dashboard.',
-      assignees: [{ id: 'u1', avatarUrl: 'https://i.pravatar.cc/40?u=1' }],
-      labels: [{ text: 'Research', color: 'bg-purple-200' }],
-      dueDate: '2025-07-05',
-    },
-    c2: {
-      id: 'c2', title: 'Wireframe main page',
-      description: 'Sketch initial wireframes in Figma.',
-      assignees: [{ id: 'u2', avatarUrl: 'https://i.pravatar.cc/40?u=2' }],
-      labels: [{ text: 'Design', color: 'bg-blue-200' }],
-      dueDate: '2025-07-07',
-    },
-    c3: {
-      id: 'c3', title: 'Implement Auth',
-      description: 'Setup OAuth2 login and JWT.',
-      assignees: [{ id: 'u3', avatarUrl: 'https://i.pravatar.cc/40?u=3' }],
-      labels: [{ text: 'Dev', color: 'bg-green-200' }],
-      dueDate: '2025-07-02',
-    },
-    c4: {
-      id: 'c4', title: 'Deploy to staging',
-      description: 'Configure CI/CD and push to staging.',
-      assignees: [{ id: 'u1', avatarUrl: 'https://i.pravatar.cc/40?u=1' }],
-      labels: [{ text: 'Ops', color: 'bg-yellow-200' }],
-      dueDate: '2025-06-30',
-    },
-  },
-};
+const COLUMN_ORDER = [
+  { id: 'backlog', title: 'Backlog' },
+  { id: 'in-progress', title: 'In Progress' },
+  { id: 'done', title: 'Done' },
+];
 
-// Sortable Card Component
-function SortableCard({ id, card, onClick }: { id: string; card: Card; onClick: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+function SortableCard({ id, card, onView, onEdit, onDelete }: { id: string; card: Task; onView: () => void; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    boxShadow: isDragging ? '0 8px 32px 0 rgba(31,38,135,0.37)' : undefined,
+    opacity: isDragging ? 0.7 : 1,
+  };
   return (
     <motion.div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-white rounded-lg shadow p-4 mb-3 cursor-grab hover:shadow-lg"
+      className="glass bg-white/60 rounded-xl shadow-lg p-4 mb-3 cursor-grab hover:shadow-2xl border border-white/30 backdrop-blur-md transition-all duration-200 hover:bg-white/80 hover:scale-[1.025]"
       layout
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.98 }}
     >
       <div className="flex justify-between items-start">
-        <h4 className="font-semibold text-sm text-gray-800">{card.title}</h4>
-        <button onClick={onClick} className="text-gray-400 hover:text-gray-600">
-          <HiOutlineEye />
-        </button>
+        <h4 className="font-semibold text-sm text-gray-800 truncate max-w-[70%]">{card.title}</h4>
+        <div className="flex gap-1">
+          <button onClick={onView} className="text-gray-400 hover:text-blue-600 transition"><HiOutlineEye /></button>
+          <button onClick={onEdit} className="text-gray-400 hover:text-green-600 transition"><HiOutlinePencil /></button>
+          <button onClick={onDelete} className="text-gray-400 hover:text-red-600 transition"><HiOutlineTrash /></button>
+        </div>
       </div>
       <div className="flex flex-wrap gap-1 mt-2">
-        {card.labels.map((l) => (
-          <span key={l.text} className={`${l.color} text-xs px-2 py-1 rounded-full`}>{l.text}</span>
+        {card.tags?.map((tag) => (
+          <span key={tag} className="bg-gradient-to-r from-blue-200 to-purple-200 text-xs px-2 py-1 rounded-full shadow-sm">{tag}</span>
         ))}
       </div>
       <div className="flex justify-between items-center text-xs text-gray-500 mt-3">
         <div className="flex -space-x-2">
-          {card.assignees.map((u) => (
-            <img key={u.id} src={u.avatarUrl} alt="avatar" className="w-6 h-6 rounded-full border-2 border-white" />
+          {card.assignedTo?.map((userId, idx) => (
+            <span key={userId} className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow">
+              {userId[0]?.toUpperCase()}
+            </span>
           ))}
         </div>
-        <span>{new Date(card.dueDate).toLocaleDateString()}</span>
+        <span>{card.dueDate ? new Date(card.dueDate).toLocaleDateString() : ''}</span>
       </div>
     </motion.div>
   );
 }
 
-// Masterpiece Kanban Component
-export default function MasterpieceKanban() {
-  const [board, setBoard] = useState<BoardData>(initialBoard);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [openCard, setOpenCard] = useState<Card | null>(null);
-
+export default function KanbanBoard({ tasks, onDragEnd, onView, onEdit, onDelete }: KanbanBoardProps) {
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
-  const handleDragEnd = ({ active, over }: any) => {
-    if (over && active.id !== over.id) {
-      // find source & dest
-      const sourceCol = board.columns.find((c) => c.cardOrder.includes(active.id));
-      const destCol = board.columns.find((c) => c.id === over.id) || board.columns.find((c) => c.cardOrder.includes(over.id));
-      if (!sourceCol || !destCol) return;
-      const newColumns = board.columns.map((col) => ({ ...col, cardOrder: [...col.cardOrder] }));
-      // remove
-      newColumns.forEach((col) => {
-        col.cardOrder = col.cardOrder.filter((cid) => cid !== active.id);
-      });
-      // insert
-      const idx = destCol.cardOrder.indexOf(over.id as string);
-      destCol.cardOrder.splice(idx >= 0 ? idx : destCol.cardOrder.length, 0, active.id as string);
-      setBoard({ ...board, columns: newColumns });
-    }
-    setActiveId(null);
-  };
+  // Group tasks by status
+  const columns = COLUMN_ORDER.map(col => ({
+    ...col,
+    tasks: tasks.filter(t => t.status === col.id),
+  }));
 
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
+      onDragEnd={onDragEnd}
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
     >
-      <div className="flex gap-6 h-full overflow-x-auto p-6 bg-gray-50">
-        {board.columns.map((col) => (
-          <div key={col.id} className="flex-shrink-0 w-72 bg-blue-100 rounded-xl p-4">
+      <div className="flex gap-6 h-full overflow-x-auto p-6 bg-gradient-to-br from-[#e0e7ff] to-[#f4fafd] min-h-[60vh]">
+        {columns.map((col) => (
+          <div key={col.id} className="flex-shrink-0 w-80 glass bg-white/40 rounded-2xl p-4 border border-white/30 backdrop-blur-md shadow-xl transition-all duration-300 hover:shadow-2xl hover:bg-white/60">
             <div className="flex items-center mb-4">
-              <h3 className="font-bold text-gray-800 flex-grow">{col.title}</h3>
-              <button onClick={() => {
-                const title = prompt('New card title');
-                if (title) {
-                  const id = `c${Date.now()}`;
-                  setBoard((b) => ({
-                    ...b,
-                    cards: { ...b.cards, [id]: { id, title, description: '', assignees: [], labels: [], dueDate: new Date().toISOString() } },
-                    columns: b.columns.map(cc => cc.id === col.id ? { ...cc, cardOrder: [...cc.cardOrder, id] } : cc)
-                  }));
-                }
-              }} className="text-blue-600 hover:text-blue-800"><HiPlus /></button>
+              <h3 className="font-bold text-lg text-gray-800 flex-grow tracking-wide uppercase drop-shadow-sm letter-spacing-[0.05em]">{col.title}</h3>
+              {/* Add card button can be implemented here if needed */}
             </div>
-            <SortableContext items={col.cardOrder} strategy={verticalListSortingStrategy}>
-              {col.cardOrder.map((cid) => (
-                <SortableCard key={cid} id={cid} card={board.cards[cid]} onClick={() => setOpenCard(board.cards[cid])} />
+            <SortableContext items={col.tasks.map(t => t._id)} strategy={verticalListSortingStrategy}>
+              {col.tasks.map((task) => (
+                <SortableCard
+                  key={task._id}
+                  id={task._id}
+                  card={task}
+                  onView={() => onView(task)}
+                  onEdit={() => onEdit(task)}
+                  onDelete={() => onDelete(task)}
+                />
               ))}
             </SortableContext>
           </div>
         ))}
       </div>
-
-      <DragOverlay>
-        {activeId && board.cards[activeId] ? (
-          <div className="bg-white p-4 rounded-lg shadow-lg w-60">
-            <h4 className="font-semibold">{board.cards[activeId].title}</h4>
-          </div>
-        ) : null}
-      </DragOverlay>
-
-      <AnimatePresence>
-        {openCard && (
-          <motion.div
-            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-            className="fixed top-0 right-0 w-1/3 h-full bg-white shadow-2xl p-6 overflow-y-auto"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">{openCard.title}</h2>
-              <HiOutlineX className="cursor-pointer text-gray-500 hover:text-gray-700" onClick={() => setOpenCard(null)} />
-            </div>
-            <p className="text-gray-600 mb-4">{openCard.description}</p>
-            <div className="flex gap-2 mb-4">
-              {openCard.labels.map(l => <span key={l.text} className={`${l.color} px-2 py-1 rounded-full text-xs`}>{l.text}</span>)}
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700">Due Date</label>
-              <input type="date" defaultValue={openCard.dueDate.split('T')[0]} className="mt-1 block w-full border-gray-300 rounded" />
-            </div>
-            <div className="flex gap-4">
-              <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Save</button>
-              <button className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* DragOverlay and modals can be added here in next steps */}
     </DndContext>
   );
 }

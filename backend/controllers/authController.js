@@ -46,9 +46,7 @@ const validateRegistration = [
   body("personalDetails.department")
     .trim()
     .notEmpty()
-    .withMessage("Department is required")
-    .isIn(allowedDepartments)
-    .withMessage(`Department must be one of: ${allowedDepartments.join(", ")}`),
+    .withMessage("Department is required"),
 
   // Password (top-level in schema, but comes in personalDetails from frontend Formik)
   body("personalDetails.password")
@@ -155,6 +153,12 @@ const register = [
         return res.status(409).json({ error: "Email already registered" });
       }
 
+      // Prepare teams array if present
+      let teams = [];
+      if (personalDetails.team && Array.isArray(personalDetails.team)) {
+        teams = personalDetails.team.map(id => new mongoose.Types.ObjectId(id));
+      }
+
       // Create new user document
       const user = new User({
         personalDetails,
@@ -162,6 +166,7 @@ const register = [
         contactDetails,
         bankDetails,
         password,
+        teams,
         organizationId: new mongoose.Types.ObjectId(DEFAULT_ORGANIZATION_ID),
       });
 

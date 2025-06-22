@@ -3,42 +3,47 @@ import path from "path";
 export const Admin = [
   {
     title: "Dashboard",
-    icon: <img width="30" height="30" src="https://img.icons8.com/external-inkubators-glyph-inkubators/30/FFFFFF/external-home-ecommerce-user-interface-inkubators-glyph-inkubators.png" alt="external-home-ecommerce-user-interface-inkubators-glyph-inkubators"/>,
+    icon: "dashboard",
     path: "/admin/dashboard",
   },
   {
     title: "Employees",
-    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/conference-foreground-selected.png" alt="conference-foreground-selected"/>,
+    icon: "employees",
     path: "/admin/employees",
   },
   {
     title: "Attendance",
-    icon: <img width="30" height="30" src="https://img.icons8.com/glyph-neue/64/FFFFFF/attendance-mark.png" alt="attendance-mark"/>,
+    icon: "attendance",
     path: "/admin/attendance",
   },
   {
     title: "Departments",
-    icon: <img width="30" height="30" src="https://img.icons8.com/sf-black/64/FFFFFF/collaborating-in-circle.png" alt="collaborating-in-circle"/>,
+    icon: "departments",
     path: "/admin/departments",
   },
   {
     title: "Roles",
-    icon: <img width="30" height="30" src="https://img.icons8.com/external-glyph-geotatah/64/FFFFFF/external-duty-just-in-time-glyph-glyph-geotatah.png" alt="external-duty-just-in-time-glyph-glyph-geotatah"/>,
+    icon: "roles",
     path: "/admin/roles",
   },
   {
     title: "Permissions",
-    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/restriction-shield.png" alt="restriction-shield"/>,
+    icon: "permissions",
     path: "/admin/permissions",
   },
   {
-    title: "Tasks",
-    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/task.png" alt="task"/>,
-    path: "/admin/tasks",
+    title: "Projects",
+    icon: "projects",
+    path: "/admin/projects",
+  },
+  {
+    title: "Teams",
+    icon: "teams",
+    path: "/admin/teams",
   },
   {
     title: "Employees Management",
-    icon: <img width="30" height="30" src="https://img.icons8.com/sf-regular-filled/48/FFFFFF/add-user-male--v2.png" alt="add-user-male--v2"/>,
+    icon: "employeesManagement",
     path: "/admin/register",
   },
 ];
@@ -48,34 +53,39 @@ export const Admin = [
 export const Employee = [
   {
     title: "Dashboard",
-    icon: <img width="30" height="30" src="https://img.icons8.com/external-inkubators-glyph-inkubators/30/FFFFFF/external-home-ecommerce-user-interface-inkubators-glyph-inkubators.png" alt="external-home-ecommerce-user-interface-inkubators-glyph-inkubators"/>,
+    icon: "dashboard",
     path: "/employee/dashboard",
   },
   
   {
     title: "Attendance",
-    icon: <img width="30" height="30" src="https://img.icons8.com/glyph-neue/64/FFFFFF/attendance-mark.png" alt="attendance-mark"/>,
+    icon: "attendance",
     path: "/employee/attendance",
   },
   {
     title: "Departments",
-    icon: <img width="30" height="30" src="https://img.icons8.com/sf-black/64/FFFFFF/collaborating-in-circle.png" alt="collaborating-in-circle"/>,
+    icon: "departments",
     path: "/employee/departments",
   },
   {
     title: "Roles",
-    icon: <img width="30" height="30" src="https://img.icons8.com/external-glyph-geotatah/64/FFFFFF/external-duty-just-in-time-glyph-glyph-geotatah.png" alt="external-duty-just-in-time-glyph-glyph-geotatah"/>,
+    icon: "roles",
     path: "/employee/roles",
   },
   {
     title: "Permissions",
-    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/restriction-shield.png" alt="restriction-shield"/>,
+    icon: "permissions",
     path: "/employee/permissions",
   },
   {
-    title: "Tasks",
-    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/task.png" alt="task"/>,
-    path: "/employee/tasks",
+    title: "Projects",
+    icon: "projects",
+    path: "/employee/projects",
+  },
+  {
+    title: "Teams",
+    icon: "teams",
+    path: "/employee/teams",
   },
 ];
 
@@ -83,39 +93,44 @@ export const Employee = [
 export const Hr = [
   {
     title: "Dashboard",
-    icon: <img width="30" height="30" src="https://img.icons8.com/external-inkubators-glyph-inkubators/30/FFFFFF/external-home-ecommerce-user-interface-inkubators-glyph-inkubators.png" alt="external-home-ecommerce-user-interface-inkubators-glyph-inkubators"/>,
+    icon: "dashboard",
     path: "/hr/dashboard",
   },
   {
     title: "Employees",
-    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/conference-foreground-selected.png" alt="conference-foreground-selected"/>,
+    icon: "employees",
     path: "/hr/employees",
   },
   {
     title: "Attendance",
-    icon: <img width="30" height="30" src="https://img.icons8.com/glyph-neue/64/FFFFFF/attendance-mark.png" alt="attendance-mark"/>,
+    icon: "attendance",
     path: "/hr/attendance",
   },
   {
     title: "Departments",
-    icon: <img width="30" height="30" src="https://img.icons8.com/sf-black/64/FFFFFF/collaborating-in-circle.png" alt="collaborating-in-circle"/>,
+    icon: "departments",
     path: "/hr/departments",
   },
   
 
   {
     title: "Permissions",
-    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/restriction-shield.png" alt="restriction-shield"/>,
+    icon: "permissions",
     path: "/hr/permissions",
   },
   {
-    title: "Tasks",
-    icon: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/task.png" alt="task"/>,
-    path: "/hr/tasks",
+    title: "Projects",
+    icon: "projects",
+    path: "/hr/projects",
+  },
+  {
+    title: "Teams",
+    icon: "teams",
+    path: "/hr/teams",
   },
   {
     title: "Employees Management",
-    icon: <img width="30" height="30" src="https://img.icons8.com/sf-regular-filled/48/FFFFFF/add-user-male--v2.png" alt="add-user-male--v2"/>,
+    icon: "employeesManagement",
     path: "/hr/register",
   },
 ];

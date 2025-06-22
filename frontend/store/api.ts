@@ -8,6 +8,11 @@ import {
   AttendanceMutationResponse,
 } from "@/types/attendance/page";
 import { Task } from "@/types/admin/task";
+import { Project, CreateProjectRequest } from "@/types/admin/project";
+
+import { Announcement } from "@/types/admin/announcement";
+import { Team } from '@/types/admin/team';
+import { Department } from '@/types/admin/department';
 
 // Optional: to support query string building
 interface GetEmployeeAttendanceParams {
@@ -30,7 +35,7 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ["Users", "Attendance", "Announcements", "Tasks"],
+  tagTypes: ["Users", "Attendance", "Announcements", "Tasks", "Projects", "Teams", "Departments"],
 
   endpoints: (builder) => ({
     // USERS
@@ -116,13 +121,13 @@ export const api = createApi({
       ],
     }),
 
-    getEmployeeDashboard: builder.query<any, void>({
+    getEmployeeDashboard: builder.query<any[], void>({
       query: () => "/api/attendance/employeeDashboard",
       providesTags: ["Attendance"],
     }),
 
     // ANNOUNCEMENTS
-    getAnnouncements: builder.query<any[], void>({
+    getAnnouncements: builder.query<Announcement[], void>({
       query: () => "api/announcements",
       providesTags: ["Announcements"],
     }),
@@ -180,6 +185,64 @@ export const api = createApi({
       }),
       invalidatesTags: ["Tasks"],
     }),
+    // PROJECTS
+    getProjects: builder.query<Project[], void>({
+      query: () => "api/projects",
+      providesTags: ["Projects"],
+    }),
+
+    getProjectById: builder.query<Project, string>({
+      query: (id) => `api/projects/${id}`,
+      providesTags: (result, error, id) => [{ type: "Projects", id }],
+    }),
+
+    createProject: builder.mutation<Project, CreateProjectRequest>({
+      query: (data) => ({
+        url: "api/projects",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Projects"],
+    }),
+
+    // TEAMS
+    getTeams: builder.query<Team[], void>({
+      query: () => "api/teams",
+      providesTags: ["Teams"],
+    }),
+
+    updateTeam: builder.mutation<Team, { id: string; name?: string; description?: string; departmentId?: string; lead?: string; members?: string[] }>({
+      query: ({ id, ...data }) => ({
+        url: `api/teams/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["Teams"],
+    }),
+
+    createTeam: builder.mutation<Team, { name: string; description?: string; departmentId?: string }>({
+      query: (data) => ({
+        url: "api/teams",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Teams"],
+    }),
+
+    // DEPARTMENTS
+    getDepartments: builder.query<Department[], void>({
+      query: () => "api/departments",
+      providesTags: ["Departments"],
+    }),
+
+    createDepartment: builder.mutation<Department, { name: string; description?: string }>({
+      query: (data) => ({
+        url: "api/departments",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Departments"],
+    }),
   }),
 });
 
@@ -201,4 +264,12 @@ export const {
   useCreateTaskMutation,
   useUpdateTaskMutation,
   useDeleteTaskMutation,
+  useGetProjectsQuery,
+  useGetProjectByIdQuery,
+  useGetTeamsQuery,
+  useGetDepartmentsQuery,
+  useCreateProjectMutation,
+  useCreateDepartmentMutation,
+  useUpdateTeamMutation,
+  useCreateTeamMutation,
 } = api;

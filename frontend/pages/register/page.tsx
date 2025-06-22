@@ -8,6 +8,8 @@ import Contact from "@/components/registerModals/Contact";
 import BankDetails from "@/components/registerModals/BankDetails";
 import ReviewAndSubmit from "@/components/registerModals/ReviewAndSubmit";
 import { useRegisterMutation } from "@/store/api";
+import CreateDepartmentModal from '@/components/modals/department/CreateDepartmentModal';
+import { useCreateDepartmentMutation } from '@/store/api';
 // Import necessary Formik types
 import {
   Form,
@@ -33,6 +35,9 @@ const RegisterPage = () => {
   const activeStep = currentType || "personalDetails"; // Default step
   const [register, { isLoading, isSuccess, isError, error, data }] =
     useRegisterMutation();
+  const [showDepartmentModal, setShowDepartmentModal] = React.useState(false);
+  const [createDepartment] = useCreateDepartmentMutation();
+
   const onSubmit = async (
     values: RegistrationData,
     { setSubmitting, resetForm }: FormikHelpers<RegistrationData> // Use FormikHelpers for the second argument type
@@ -54,6 +59,17 @@ const RegisterPage = () => {
       // You might want to check the error object (err) for more specific error details from the backend
     } finally {
       setSubmitting(false); // Reset submitting state
+    }
+  };
+
+  const handleCreateDepartment = async (data) => {
+    try {
+      await createDepartment(data).unwrap();
+      alert('Department created!');
+      setShowDepartmentModal(false);
+      // Optionally refetch departments here if needed
+    } catch {
+      alert('Failed to create department.');
     }
   };
 
@@ -86,18 +102,14 @@ const RegisterPage = () => {
               {activeStep === "personalDetails" && (
                 <PersonalDetails
                   values={values.personalDetails}
-                  // Provide default empty objects if errors.personalDetails or touched.personalDetails are undefined
-                  errors={
-                    errors.personalDetails ||
-                    ({} as FormikErrors<PersonalDetailsData>)
-                  } // Use {} as default
-                  touched={
-                    touched.personalDetails ||
-                    ({} as FormikTouched<PersonalDetailsData>)
-                  } // Use {} as default
-                  handleChange={handleChange} // Pass Formik's handler
-                  handleBlur={handleBlur} // Pass Formik's handler
-                  setFieldValue={setFieldValue} // Pass Formik's handler
+                  errors={errors.personalDetails || {}}
+                  touched={touched.personalDetails || {}}
+                  handleChange={handleChange}
+                  handleBlur={handleBlur}
+                  setFieldValue={setFieldValue}
+                  showDepartmentModal={showDepartmentModal}
+                  setShowDepartmentModal={setShowDepartmentModal}
+                  handleCreateDepartment={handleCreateDepartment}
                 />
               )}
 
@@ -172,6 +184,12 @@ const RegisterPage = () => {
           )}
         </Formik>
       </div>
+      {/* Render modal OUTSIDE the Formik <Form> */}
+      <CreateDepartmentModal
+        open={showDepartmentModal}
+        onClose={() => setShowDepartmentModal(false)}
+        onCreate={handleCreateDepartment}
+      />
     </div>
   );
 };

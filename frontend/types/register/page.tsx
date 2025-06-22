@@ -5,6 +5,7 @@ export interface PersonalDetailsData {
   lastName: string;
   role: string;
   department: string;
+  team?: string[];
   password?: string;
   confirmPassword?: string;
 }
@@ -45,6 +46,7 @@ export const initialValues: RegistrationData = {
     lastName: "",
     role: "",
     department: "",
+    team: [],
     password: "",
     confirmPassword: "",
   },
@@ -79,6 +81,7 @@ export const RegistrationSchema = Yup.object().shape({
     lastName: Yup.string().required("Last Name is required"),
     role: Yup.string().required("Role is required"),
     department: Yup.string().required("Department is required"),
+    team: Yup.array().of(Yup.string()).optional(),
     password: Yup.string().required("Password is required").min(6, "Too short"),
     confirmPassword: Yup.string()
       .required("Please confirm your password")

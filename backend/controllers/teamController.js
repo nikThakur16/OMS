@@ -3,7 +3,11 @@ const Team = require("../models/Team");
 // Create Team
 exports.createTeam = async (req, res) => {
   try {
-    const team = new Team(req.body);
+    const organizationId = req.user.organizationId;
+    const team = new Team({
+      ...req.body,
+      organizationId,
+    });
     await team.save();
     res.status(201).json(team);
   } catch (err) {

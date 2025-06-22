@@ -1,11 +1,14 @@
 'use client';
 
-import React from 'react'
+import React, { useState } from 'react'
 // Import Formik types for props
 import { FormikErrors, FormikTouched } from 'formik';
 // Import the specific type for personalDetails data
 // Assuming PersonalDetailsData is defined and exported from your central types file
 import { type PersonalDetailsData } from '@/types/register/page'; // ADJUST THIS IMPORT PATH if needed and ensure PersonalDetailsData is exported
+import { useGetDepartmentsQuery, useCreateDepartmentMutation, useGetTeamsQuery } from '@/store/api';
+import CreateDepartmentModal from '../modals/department/CreateDepartmentModal';
+import TeamsMultiSelect from './TeamsMultiSelect';
 
 // Define the props that this component will receive from the parent Formik instance
 interface PersonalDetailsFormProps {
@@ -15,14 +18,15 @@ interface PersonalDetailsFormProps {
    handleChange: (e: React.ChangeEvent<any>) => void;
    handleBlur: (e: React.FocusEvent<any>) => void;
    setFieldValue: (field: string, value: any, shouldValidate?: boolean) => void;
+   showDepartmentModal: boolean;
+   setShowDepartmentModal: (open: boolean) => void;
+   handleCreateDepartment: (data: { name: string; description?: string }) => void;
 }
 
-const PersonalDetails: React.FC<PersonalDetailsFormProps> = ({values, errors, touched, handleChange, handleBlur, setFieldValue}) => {
-  
-  // Define the options for the role and department select boxes based on your backend enums
+const PersonalDetails: React.FC<PersonalDetailsFormProps> = ({values, errors, touched, handleChange, handleBlur, setFieldValue, showDepartmentModal, setShowDepartmentModal, handleCreateDepartment}) => {
   const roleOptions = ['Admin', 'Employee', 'HR', 'Manager'];
-  const departmentOptions = ['Sales', 'Marketing', 'ReactJS', 'NodeJS', 'Python', 'Java', 'ReactNative', 'Laravel', 'Other', 'Frontend', 'Backend', 'Fullstack'];
-
+  const { data: departments, refetch } = useGetDepartmentsQuery();
+  const { data: teams } = useGetTeamsQuery();
 
   return (
     // Outer container with same styling as Address.tsx
@@ -98,11 +102,14 @@ const PersonalDetails: React.FC<PersonalDetailsFormProps> = ({values, errors, to
               )}
           </div>
 
-           {/* Department Field - Changed to Select */}
+           {/* Department Field - Changed to Select with Add button */}
            <div className='flex flex-col'>
-              {/* Label styling from Address.tsx */}
-              <label className='mb-2 text-md font-semibold text-[#175075] pl-1' htmlFor="department">Department</label>
-               <select // Changed from input to select
+              <div className='flex items-center justify-between'>
+                {/* Label styling from Address.tsx */}
+                <label className='mb-2 text-md font-semibold text-[#175075] pl-1' htmlFor="department">Department</label>
+                <button type="button" className="text-indigo-600 text-xs font-semibold" onClick={() => setShowDepartmentModal(true)}>+ Add Department</button>
+              </div>
+              <select // Changed from input to select
                   id="department"
                   name="personalDetails.department"
                   value={values.department}
@@ -112,14 +119,22 @@ const PersonalDetails: React.FC<PersonalDetailsFormProps> = ({values, errors, to
                   className='w-full h-10 bg-[#D3E7F0] rounded-lg font-semibold tracking-wider px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#175075] appearance-none' // Added appearance-none for custom arrow
               >
                   <option value="">Select Department</option> {/* Optional: Add a default empty option */}
-                  {departmentOptions.map(department => (
-                    <option key={department} value={department}>{department}</option>
+                  {departments && departments.map(dept => (
+                    <option key={dept._id} value={dept.name}>{dept.name}</option>
                   ))}
               </select>
                {errors && touched && errors.department && touched.department && (
                   <div className="text-red-500 text-sm mt-1">{errors.department as React.ReactNode}</div>
               )}
           </div>
+
+          {/* Team Field - Multi Select Dropdown with Checkboxes */}
+          <TeamsMultiSelect
+            teams={teams || []}
+            value={values.team || []}
+            onChange={selected => setFieldValue('personalDetails.team', selected)}
+            label="Teams"
+          />
 
           {/* Password Field */}
           <div className='flex flex-col'>
@@ -164,6 +179,7 @@ const PersonalDetails: React.FC<PersonalDetailsFormProps> = ({values, errors, to
 
         </div>
       </div>
+      <CreateDepartmentModal open={showDepartmentModal} onClose={() => setShowDepartmentModal(false)} onCreate={handleCreateDepartment} />
     </div>
   );
 };

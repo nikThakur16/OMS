@@ -3,7 +3,9 @@ const Project = require("../models/Project");
 // Create Project
 exports.createProject = async (req, res) => {
   try {
-    const project = new Project(req.body);
+    // Always set organizationId from the authenticated user
+    const orgId = req.user.organizationId;
+    const project = new Project({ ...req.body, organizationId: orgId });
     await project.save();
     res.status(201).json(project);
   } catch (err) {

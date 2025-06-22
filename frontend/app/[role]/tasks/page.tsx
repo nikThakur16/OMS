@@ -1,146 +1,368 @@
 "use client";
-import React, { useState, useMemo } from "react";
-import { Task } from "@/types/admin/task";
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { HiOutlineUserAdd, HiOutlineSearch, HiOutlineFilter, HiOutlineSortAscending, HiPlus, HiViewBoards, HiViewList, HiOutlinePencil, HiOutlineTrash, HiOutlineEye } from 'react-icons/hi';
+import { Task } from '../../../types/admin/task';
 import {
-  useGetTasksQuery,
-  useCreateTaskMutation,
-  useUpdateTaskMutation,
-  useDeleteTaskMutation,
-} from "@/store/api";
-import StatCard from "@/components/admin/StatCard";
-import TasksTable from "@/components/admin/TasksTable";
-import TaskDetailsModal from "@/components/admin/TaskDetailsModal";
-import TaskForm from "@/components/admin/TaskForm";
-import TaskFilters from "@/components/admin/TaskFilters";
-import { HiOutlineClipboard, HiOutlineCheckCircle, HiOutlineExclamationCircle, HiOutlineClock } from "react-icons/hi2";
-import KanbanBoard from "@/components/admin/KanbanBoard";
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-type TaskFiltersType = {
-  status?: string;
-  priority?: string;
-  search?: string;
+// Dummy data
+const project = {
+  name: 'Zira Project',
+  customer: 'Jane Doe',
+  priority: 'High',
+  startDate: '2024-01-01',
+  endDate: '2024-12-31',
+  tags: ['Research', 'Design', 'Development', 'Other'],
+  members: [
+    { id: '1', name: 'Alice', avatar: 'https://i.pravatar.cc/40?u=1' },
+    { id: '2', name: 'Bob', avatar: 'https://i.pravatar.cc/40?u=2' },
+    { id: '3', name: 'Carol', avatar: 'https://i.pravatar.cc/40?u=3' },
+    { id: '4', name: 'Dave', avatar: 'https://i.pravatar.cc/40?u=4' },
+  ],
 };
 
-export default function AdminTasksPage() {
+const dummyTasks: Task[] = [
+  { _id: '1', title: 'Design login page', description: 'Create Figma wireframes', status: 'backlog', priority: 'high', dueDate: '2024-06-10', tags: ['Design'], assignedTo: ['1', '2'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { _id: '2', title: 'API integration', description: 'Connect frontend to backend', status: 'in-progress', priority: 'medium', dueDate: '2024-06-12', tags: ['Development'], assignedTo: ['3'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { _id: '3', title: 'Write docs', description: 'Document API endpoints', status: 'done', priority: 'low', dueDate: '2024-06-08', tags: ['Docs'], assignedTo: ['4'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { _id: '4', title: 'User testing', description: 'Collect feedback', status: 'backlog', priority: 'high', dueDate: '2024-06-15', tags: ['Research'], assignedTo: ['2', '3'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { _id: '5', title: 'Fix bugs', description: 'Resolve reported issues', status: 'in-progress', priority: 'critical', dueDate: '2024-06-11', tags: ['Development'], assignedTo: ['1'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+];
+
+const statusColumns = [
+  { id: 'backlog', title: 'Backlog' },
+  { id: 'in-progress', title: 'In Progress' },
+  { id: 'done', title: 'Done' },
+  { id: 'archived', title: 'Archived' },
+];
+
+type ModalMode = 'view' | 'edit' | 'create';
+
+export default function TaskManagementPage() {
+  const [view, setView] = useState<'kanban' | 'list' | 'whiteboard'>('kanban');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [formInitial, setFormInitial] = useState<Partial<Task> | undefined>(undefined);
-  const [filters, setFilters] = useState<TaskFiltersType>({});
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState<ModalMode>('view');
+  const [tasks, setTasks] = useState<Task[]>(dummyTasks);
 
-  // RTK Query hooks
-  const { data: tasks = [], isLoading, refetch } = useGetTasksQuery();
-
-  const [createTask] = useCreateTaskMutation();
-  const [updateTask] = useUpdateTaskMutation();
-  const [deleteTask] = useDeleteTaskMutation();
-
-  // Stat calculations
-  const totalTasks = tasks.length;
-  const dueSoon = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) && t.status !== "done").length;
-  const overdue = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "done").length;
-  const completed = tasks.filter(t => t.status === "done").length;
-
-  // Client-side filtering
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
-      if (filters.status && t.status !== filters.status) return false;
-      if (filters.priority && t.priority !== filters.priority) return false;
-      if (
-        filters.search &&
-        !(
-          t.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-          t.description.toLowerCase().includes(filters.search.toLowerCase())
-        )
-      )
-        return false;
-      return true;
-    });
-  }, [tasks, filters]);
-
-  function handleView(task: Task) {
+  // Kanban drag logic (dummy, no real drag for now)
+  function handleCardClick(task: Task, mode: ModalMode = 'view') {
     setSelectedTask(task);
+    setModalMode(mode);
+    setShowModal(true);
   }
 
-  function handleEdit(task: Task) {
-    setFormInitial(task);
-    setShowForm(true);
-  }
+  // Header
+  const Header = () => (
+    <div className="relative rounded-3xl p-6 bg-gradient-to-r from-indigo-500 via-blue-500 to-fuchsia-500 shadow-xl mb-8 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-3xl pointer-events-none" />
+      <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white drop-shadow-lg mb-2">{project.name}</h2>
+          <div className="flex flex-wrap gap-2 items-center mb-2">
+            <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full font-semibold uppercase tracking-wider">Priority: {project.priority}</span>
+            <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">Start: {project.startDate}</span>
+            <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">Due: {project.endDate}</span>
+            {project.tags.map(tag => (
+              <span key={tag} className="bg-gradient-to-r from-blue-200 to-fuchsia-200 text-xs px-2 py-1 rounded-full text-gray-800 font-semibold">{tag}</span>
+            ))}
+          </div>
+          <div className="text-white/80 text-sm">Customer: <span className="font-bold text-white">{project.customer}</span></div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex -space-x-3">
+            {project.members.map(m => (
+              <img key={m.id} src={m.avatar} alt={m.name} className="w-10 h-10 rounded-full border-2 border-white shadow" title={m.name} />
+            ))}
+          </div>
+          <button className="ml-2 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-full flex items-center gap-1 font-semibold transition">
+            <HiOutlineUserAdd className="text-lg" /> Invite Member
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-  async function handleDelete(task: Task) {
-    if (!window.confirm("Are you sure you want to delete this task?")) return;
-    await deleteTask(task._id);
-    refetch();
-  }
-
-  async function handleFormSubmit(data: Partial<Task>) {
-    if (formInitial && formInitial._id) {
-      await updateTask({ id: formInitial._id, data });
-    } else {
-      await createTask(data);
-    }
-    setShowForm(false);
-    setFormInitial(undefined);
-    refetch();
-  }
-
-  function handleDragEnd(result) {
-    if (!result.destination) return;
-    const { draggableId, destination } = result;
-    const task = tasks.find((t) => t._id === draggableId);
-    if (task && task.status !== destination.droppableId) {
-      updateTask({ id: task._id, data: { status: destination.droppableId } });
-      refetch();
-    }
-  }
-
-  return (
-    <div className="p-6 bg-[#f4fafd] min-h-screen">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-[#0B3C5D]">Tasks</h1>
-        <button
-          className="bg-[#0B3C5D] text-white px-5 py-2 rounded-lg font-semibold shadow hover:bg-[#14507a] transition"
-          onClick={() => {
-            setFormInitial(undefined);
-            setShowForm(true);
-          }}
-        >
-          + Create Task
+  // Toolbar
+  const Toolbar = () => (
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="flex items-center gap-3">
+        <span className="text-lg font-bold text-gray-700">{tasks.length} tasks</span>
+        <button className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white px-4 py-2 rounded-xl font-semibold shadow hover:from-indigo-600 hover:to-fuchsia-600 transition" onClick={() => { setModalMode('create'); setShowModal(true); }}>
+          <HiPlus /> Add New
         </button>
       </div>
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Tasks" value={totalTasks} icon={<HiOutlineClipboard />} color="bg-blue-100 text-blue-800" />
-        <StatCard label="Due Soon" value={dueSoon} icon={<HiOutlineClock />} color="bg-yellow-100 text-yellow-800" />
-        <StatCard label="Overdue" value={overdue} icon={<HiOutlineExclamationCircle />} color="bg-red-100 text-red-800" />
-        <StatCard label="Completed" value={completed} icon={<HiOutlineCheckCircle />} color="bg-green-100 text-green-800" />
+      <div className="flex items-center gap-2">
+        <div className="relative">
+          <input type="text" placeholder="Search..." className="pl-10 pr-4 py-2 rounded-xl bg-white/60 border border-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-300 text-gray-700 placeholder-gray-400 shadow" />
+          <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+        </div>
+        <button className="flex items-center gap-1 bg-white/60 border border-white/30 px-3 py-2 rounded-xl text-gray-700 hover:bg-white/80 transition"><HiOutlineFilter /> Filters</button>
+        <button className="flex items-center gap-1 bg-white/60 border border-white/30 px-3 py-2 rounded-xl text-gray-700 hover:bg-white/80 transition"><HiOutlineSortAscending /> Sort</button>
+        <div className="flex gap-1 ml-2">
+          <button className={`p-2 rounded-lg ${view === 'kanban' ? 'bg-indigo-500 text-white' : 'bg-white/60 text-gray-700'}`} onClick={() => setView('kanban')}><HiViewBoards /></button>
+          <button className={`p-2 rounded-lg ${view === 'list' ? 'bg-indigo-500 text-white' : 'bg-white/60 text-gray-700'}`} onClick={() => setView('list')}><HiViewList /></button>
+          <button className={`p-2 rounded-lg ${view === 'whiteboard' ? 'bg-indigo-500 text-white' : 'bg-white/60 text-gray-700'}`} onClick={() => setView('whiteboard')}>📝</button>
+        </div>
       </div>
-      {/* Filters */}
-      <TaskFilters onFilter={setFilters} />
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow p-4">
-        {isLoading ? (
-          <div className="text-center py-10 text-gray-500">Loading...</div>
-        ) : (
-          <KanbanBoard
-            tasks={filteredTasks}
-            onDragEnd={handleDragEnd}
-            onView={handleView}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-        )}
+    </div>
+  );
+
+  // Kanban Board with dnd-kit
+  const KanbanBoard = () => {
+    // Track the active dragged task (removed unused activeId)
+    const [, setActiveId] = useState<string | null>(null);
+
+    // Group tasks by status
+    const tasksByStatus: Record<string, Task[]> = statusColumns.reduce((acc, col) => {
+      acc[col.id] = tasks.filter(t => t.status === col.id);
+      return acc;
+    }, {} as Record<string, Task[]>);
+
+    // Handle drag start
+    function handleDragStart(event: DragStartEvent) {
+      setActiveId(event.active.id as string);
+    }
+
+    // Handle drag end
+    function handleDragEnd(event: DragEndEvent) {
+      const { active, over } = event;
+      setActiveId(null);
+      if (!over) return;
+      if (active.id === over.id) return;
+
+      // Find the source and destination columns
+      let sourceCol = '';
+      let destCol = '';
+      for (const col of statusColumns) {
+        if (tasksByStatus[col.id].find(t => t._id === active.id)) sourceCol = col.id;
+        if (tasksByStatus[col.id].find(t => t._id === over.id)) destCol = col.id;
+      }
+      if (!sourceCol || !destCol) return;
+
+      // If moving within the same column
+      if (sourceCol === destCol) {
+        const oldIndex = tasksByStatus[sourceCol].findIndex(t => t._id === active.id);
+        const newIndex = tasksByStatus[destCol].findIndex(t => t._id === over.id);
+        const newTasksInCol = arrayMove(tasksByStatus[sourceCol], oldIndex, newIndex);
+        const newTasks = tasks.filter(t => t.status !== sourceCol).concat(newTasksInCol);
+        setTasks(newTasks);
+      } else {
+        // Moving to a different column
+        setTasks(prev =>
+          prev.map(t =>
+            t._id === active.id ? { ...t, status: destCol as import('../../../types/admin/task').TaskStatus } : t
+          )
+        );
+      }
+    }
+
+    // Sortable Task Card
+    function SortableTaskCard({ task, onCardClick }: { task: Task; onCardClick: (task: Task, mode?: ModalMode) => void }) {
+      const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task._id });
+      const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : 'auto',
+        opacity: isDragging ? 0.7 : 1,
+      };
+      return (
+        <motion.div
+          ref={setNodeRef}
+          style={style}
+          layout
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.98 }}
+          className={`mb-3 p-4 rounded-xl shadow bg-gradient-to-br from-white/80 to-${task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'yellow' : 'blue'}-100 border-l-4 ${task.priority === 'high' ? 'border-red-400' : task.priority === 'medium' ? 'border-yellow-400' : 'border-blue-400'} cursor-pointer transition`}
+          onClick={() => onCardClick(task, 'view')}
+          {...attributes}
+          {...listeners}
+        >
+          <div className="flex justify-between items-start">
+            <h4 className="font-semibold text-sm text-gray-800 truncate max-w-[70%]">{task.title}</h4>
+            <div className="flex gap-1">
+              <button onClick={e => { e.stopPropagation(); onCardClick(task, 'view'); }} className="text-gray-400 hover:text-blue-600 transition"><HiOutlineEye /></button>
+              <button onClick={e => { e.stopPropagation(); onCardClick(task, 'edit'); }} className="text-gray-400 hover:text-green-600 transition"><HiOutlinePencil /></button>
+              <button onClick={e => { e.stopPropagation(); setTasks(tasks.filter(t => t._id !== task._id)); }} className="text-gray-400 hover:text-red-600 transition"><HiOutlineTrash /></button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {task.tags?.map(tag => (
+              <span key={tag} className="bg-gradient-to-r from-blue-200 to-fuchsia-200 text-xs px-2 py-1 rounded-full shadow-sm">{tag}</span>
+            ))}
+          </div>
+          <div className="flex justify-between items-center text-xs text-gray-500 mt-3">
+            <div className="flex -space-x-2">
+              {task.assignedTo?.map(userId => (
+                <span key={userId} className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow">
+                  {userId[0]?.toUpperCase()}
+                </span>
+              ))}
+            </div>
+            <span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : ''}</span>
+          </div>
+        </motion.div>
+      );
+    }
+
+    return (
+      <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex gap-6 h-full overflow-x-auto p-2 bg-transparent">
+          {statusColumns.map(col => (
+            <div key={col.id} className="flex-shrink-0 w-80 glass bg-white/40 rounded-2xl p-4 border border-white/30 backdrop-blur-md shadow-xl transition-all duration-300 hover:shadow-2xl hover:bg-white/60">
+              <div className="flex items-center mb-4">
+                <h3 className="font-bold text-lg text-gray-800 flex-grow tracking-wide uppercase drop-shadow-sm letter-spacing-[0.05em]">{col.title}</h3>
+                <button className="text-indigo-500 hover:text-indigo-700 ml-2"><HiPlus /></button>
+              </div>
+              <SortableContext items={tasksByStatus[col.id].map(t => t._id)} strategy={verticalListSortingStrategy}>
+                {tasksByStatus[col.id].map(task => (
+                  <SortableTaskCard key={task._id} task={task} onCardClick={handleCardClick} />
+                ))}
+              </SortableContext>
+            </div>
+          ))}
+        </div>
+      </DndContext>
+    );
+  };
+
+  // Task List View
+  const TaskList = () => (
+    <div className="rounded-2xl bg-white/60 border border-white/30 backdrop-blur-md shadow-xl p-4">
+      <table className="w-full text-left">
+        <thead>
+          <tr className="text-xs text-gray-500 uppercase">
+            <th className="py-2">Title</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Due</th>
+            <th>Tags</th>
+            <th>Assignees</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {tasks.map(task => (
+            <tr key={task._id} className="border-b border-gray-200 hover:bg-white/80 transition">
+              <td className="py-2 font-semibold">{task.title}</td>
+              <td>{task.description}</td>
+              <td>{task.status}</td>
+              <td>{task.priority}</td>
+              <td>{task.dueDate}</td>
+              <td>{task.tags?.join(', ')}</td>
+              <td>
+                <div className="flex -space-x-2">
+                  {task.assignedTo?.map(userId => (
+                    <span key={userId} className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow">
+                      {userId[0]?.toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+              </td>
+              <td>
+                <button onClick={() => handleCardClick(task, 'view')} className="text-gray-400 hover:text-blue-600 mx-1"><HiOutlineEye /></button>
+                <button onClick={() => handleCardClick(task, 'edit')} className="text-gray-400 hover:text-green-600 mx-1"><HiOutlinePencil /></button>
+                <button onClick={() => setTasks(tasks.filter(t => t._id !== task._id))} className="text-gray-400 hover:text-red-600 mx-1"><HiOutlineTrash /></button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  // Whiteboard View (dummy)
+  const Whiteboard = () => (
+    <div className="relative min-h-[400px] bg-gradient-to-br from-white/60 to-blue-100 rounded-2xl border border-white/30 shadow-xl p-8 flex flex-wrap gap-8">
+      {[1,2,3].map(i => (
+        <motion.div key={i} drag dragConstraints={{ left: 0, top: 0, right: 400, bottom: 200 }} className="w-60 h-40 bg-white/90 rounded-xl shadow-lg p-4 cursor-move flex flex-col gap-2">
+          <div className="font-bold text-lg text-indigo-600">Sticky Note {i}</div>
+          <div className="text-gray-500 text-sm">This is a draggable sticky note. (Whiteboard demo)</div>
+        </motion.div>
+      ))}
+    </div>
+  );
+
+  // Task Modal
+  const TaskModal = () => (
+    <AnimatePresence>
+      {showModal && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl relative">
+            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl" onClick={() => setShowModal(false)}>&times;</button>
+            {modalMode === 'view' && selectedTask && (
+              <div>
+                <h2 className="text-2xl font-bold mb-2">{selectedTask.title}</h2>
+                <div className="text-gray-600 mb-2">{selectedTask.description}</div>
+                <div className="flex gap-2 mb-2">
+                  {selectedTask.tags?.map(tag => <span key={tag} className="bg-blue-100 text-xs px-2 py-1 rounded-full">{tag}</span>)}
+                </div>
+                <div className="text-sm text-gray-500 mb-2">Due: {selectedTask.dueDate}</div>
+                <div className="flex gap-2">
+                  <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700" onClick={() => setModalMode('edit')}>Edit</button>
+                  <button className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700" onClick={() => { setTasks(tasks.filter(t => t._id !== selectedTask._id)); setShowModal(false); }}>Delete</button>
+                </div>
+              </div>
+            )}
+            {modalMode === 'edit' && selectedTask && (
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Edit Task</h2>
+                {/* Dummy edit form */}
+                <input className="w-full mb-2 p-2 border rounded" defaultValue={selectedTask.title} />
+                <textarea className="w-full mb-2 p-2 border rounded" defaultValue={selectedTask.description} />
+                <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2" onClick={() => setShowModal(false)}>Save</button>
+                <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setModalMode('view')}>Cancel</button>
+              </div>
+            )}
+            {modalMode === 'create' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Create Task</h2>
+                {/* Dummy create form */}
+                <input className="w-full mb-2 p-2 border rounded" placeholder="Title" />
+                <textarea className="w-full mb-2 p-2 border rounded" placeholder="Description" />
+                <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2" onClick={() => setShowModal(false)}>Create</button>
+                <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setShowModal(false)}>Cancel</button>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  // Floating Action Button
+  const FloatingActionButton = () => (
+    <div className="fixed bottom-8 right-8 z-50">
+      <motion.button whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-xl hover:from-indigo-600 hover:to-fuchsia-600 transition">
+        <HiPlus />
+      </motion.button>
+    </div>
+  );
+
+  return (
+    <div className="p-6 bg-gradient-to-br from-[#e0e7ff] to-[#f4fafd] min-h-screen relative">
+      <Header />
+      <Toolbar />
+      <div className="mb-8">
+        {view === 'kanban' && <KanbanBoard />}
+        {view === 'list' && <TaskList />}
+        {view === 'whiteboard' && <Whiteboard />}
       </div>
-      {/* Modals */}
-      {selectedTask && (
-        <TaskDetailsModal task={selectedTask} onClose={() => setSelectedTask(null)} />
-      )}
-      {showForm && (
-        <TaskForm
-          initial={formInitial}
-          onSubmit={handleFormSubmit}
-          onClose={() => setShowForm(false)}
-        />
-      )}
+      <TaskModal />
+      <FloatingActionButton />
     </div>
   );
 }
