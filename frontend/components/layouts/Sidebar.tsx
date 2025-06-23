@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Admin ,Employee, Hr } from '@/config/sidenav/page'
 import { useRouter, usePathname } from 'next/navigation'
 import { HiOutlinePlus, HiChevronLeft, HiChevronRight, HiChevronDown } from 'react-icons/hi'
@@ -43,6 +43,12 @@ const iconMap: Record<string, React.ReactNode> = {
 const Sidebar = () => {
   const [showProjects, setShowProjects] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const router = useRouter();
   const pathname = usePathname();
   const user = useAppSelector(state => state.login.user);
@@ -65,6 +71,8 @@ const Sidebar = () => {
   const isProjectActive = (projectId: string) => pathname?.includes(`/projects/${projectId}`);
 
   const { data: projects } = useGetProjectsQuery();
+
+  if (!mounted) return null;
 
   return (
     <div className={`flex flex-col bg-[#034F75] ${collapsed ? 'w-[70px]' : 'w-[17%]'} max-h-[100vh] rounded-[22px] pl-[10px] px-2 py-6 transition-all duration-300`}>
@@ -143,14 +151,7 @@ const Sidebar = () => {
             </div>
           );
         })}
-        {user && allowedRoles.includes(user.role) && (
-          <Link
-            href="/org-structure"
-            className="px-4 py-2 rounded-lg hover:bg-indigo-100 text-indigo-700 font-semibold transition"
-          >
-            Organization Structure
-          </Link>
-        )}
+       
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import React from "react";
 import { Task } from "@/types/admin/task";
-
+import ShortMonthDate from "@/utils/time/ShortMonthDate";
 interface TaskDetailsModalProps {
   task: Task | null;
   onClose: () => void;
@@ -27,10 +27,10 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
         </div>
         <div className="mb-2">
           <span className="font-semibold">Due Date:</span>{" "}
-          {new Date(task.dueDate).toLocaleDateString()}
+          {task.dueDate ? <ShortMonthDate date={task.dueDate} /> : ''}
         </div>
         <div className="mb-2">
-          <span className="font-semibold">Assignees:</span> {task.assignedTo.length}
+          <span className="font-semibold">Assignees:</span> {task.assignedTo?.length || 0}
         </div>
         <div className="text-xs text-gray-400 mt-4">
           Created: {new Date(task.createdAt).toLocaleString()}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useGetAllAttendanceQuery } from "@/store/api";
-import { getTodayDateParam } from "@/utils/Time&Date";
+import { getTodayDateParam } from "@/utils/time/Time&Date";
 import AttendanceRow from "@/components/attendance/AttendanceRow";
 
 interface PageProps {

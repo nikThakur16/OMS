@@ -10,8 +10,8 @@ type ApiProject = {
   startDate?: string | Date;
   endDate?: string | Date;
   manager?: string; // or populated object
-  teamIds?: string[];
-  departmentIds?: string[];
+  team?: string[];
+  departments?: string[];
   customFields?: any;
   deletedAt?: string | Date;
   archivedAt?: string | Date;
@@ -28,7 +28,7 @@ export function adaptProject(apiProject: ApiProject): Project {
     startDate: apiProject.startDate ? String(apiProject.startDate) : "",
     endDate: apiProject.endDate ? String(apiProject.endDate) : "",
     manager: apiProject.manager || "",
-    teamSize: apiProject.teamIds ? apiProject.teamIds.length : 0,
+    teamSize: apiProject.team ? apiProject.team.length : 0,
     // You may need to fetch tasksCount/tags/customer/favorite from elsewhere or set defaults:
     tasksCount: 0,
     tags: [],

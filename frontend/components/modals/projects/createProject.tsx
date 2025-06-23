@@ -16,8 +16,8 @@ interface CreateProjectModalProps {
     endDate?: string;
     status: string;
     manager?: string;
-    teamIds?: string[];
-    departmentIds?: string[];
+    team?: string[];
+    departments?: string[];
   }) => void;
 }
 
@@ -29,8 +29,8 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
     endDate: "",
     status: "active",
     manager: "",
-    teamIds: [] as string[],
-    departmentIds: [] as string[],
+    team: [] as string[],
+    departments: [] as string[],
   });
 
   const { data: users } = useGetUsersQuery();
@@ -48,13 +48,13 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
     e.preventDefault();
     const payload = { ...form };
     if (!payload.manager) {
-      delete payload.manager;
+      delete payload?.manager;
     }
     onCreate(payload);
-    setForm({ name: "", description: "", startDate: "", endDate: "", status: "active", manager: "", teamIds: [], departmentIds: [] });
+    setForm({ name: "", description: "", startDate: "", endDate: "", status: "active", manager: "", team: [], departments: [] });
   };
 
-  const handleMultiSelect = (field: 'teamIds' | 'departmentIds', value: string) => {
+  const handleMultiSelect = (field: 'team' | 'departments', value: string) => {
     setForm(f => {
       const arr = f[field].includes(value)
         ? f[field].filter(id => id !== value)
@@ -176,8 +176,8 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
                   <button
                     type="button"
                     key={team._id}
-                    className={`px-3 py-1 rounded-full border ${form.teamIds.includes(team._id) ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-gray-100 text-gray-700 border-gray-300'}`}
-                    onClick={() => handleMultiSelect('teamIds', team._id)}
+                    className={`px-3 py-1 rounded-full border ${form.team.includes(team._id) ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-gray-100 text-gray-700 border-gray-300'}`}
+                    onClick={() => handleMultiSelect('team', team._id)}
                   >
                     {team.name}
                   </button>
@@ -194,8 +194,8 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
                   <button
                     type="button"
                     key={dept._id}
-                    className={`px-3 py-1 rounded-full border ${form.departmentIds.includes(dept._id) ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-gray-100 text-gray-700 border-gray-300'}`}
-                    onClick={() => handleMultiSelect('departmentIds', dept._id)}
+                    className={`px-3 py-1 rounded-full border ${form.departments.includes(dept._id) ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-gray-100 text-gray-700 border-gray-300'}`}
+                    onClick={() => handleMultiSelect('departments', dept._id)}
                   >
                     {dept.name}
                   </button>
@@ -212,7 +212,7 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-3 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-600 transition-colors"
+                className="flex-1 px-4 py-3 bg-[#175075] text-white rounded-lg font-semibold hover:bg-indigo-600 transition-colors"
               >
                 Create Project
               </button>

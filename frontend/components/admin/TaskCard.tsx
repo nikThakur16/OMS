@@ -1,7 +1,7 @@
 import React from "react";
 import { Task } from "@/types/admin/task";
 import { HiOutlineUser, HiOutlineChatBubbleLeftRight, HiOutlineCalendar, HiOutlineFlag, HiOutlineEye, HiOutlinePencil, HiOutlineTrash } from "react-icons/hi2";
-
+import ShortMonthDate from "@/utils/time/ShortMonthDate";
 interface TaskCardProps {
   task: Task;
   onView: (task: Task) => void;
@@ -33,7 +33,7 @@ export default function TaskCard({ task, onView, onEdit, onDelete }: TaskCardPro
         <HiOutlineFlag className="text-xs" />
         <span className="text-xs">{task.priority}</span>
         <HiOutlineCalendar className="text-xs ml-2" />
-        <span className="text-xs">{new Date(task.dueDate).toLocaleDateString()}</span>
+        <span className="text-xs">{task.dueDate ? <ShortMonthDate date={task.dueDate} /> : ''}</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="flex items-center gap-1 text-xs text-gray-400">

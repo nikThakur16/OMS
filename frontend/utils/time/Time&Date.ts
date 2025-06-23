@@ -1,4 +1,4 @@
-import dayjs from "@/utils/dayjs"; // Use your custom dayjs import
+import dayjs from "@/utils/time/dayjs"; // Use your custom dayjs import
 
 export const getTodayDateParam = () => {
     const today = new Date();

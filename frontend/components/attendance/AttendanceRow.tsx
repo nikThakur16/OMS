@@ -1,6 +1,6 @@
 import {useLiveWorkingTime} from "@/utils/hooks/LiveWorkingHours";
 import {useLiveBreakTime} from "@/utils/hooks/LiveBreakingHours";
-import {formatTime, formatDuration} from "@/utils/Time&Date";
+import {formatTime, formatDuration} from "@/utils/time/Time&Date";
 import { useLiveWorkingTimeFromSessions } from "@/utils/hooks/LiveWorkingHours";
 
 

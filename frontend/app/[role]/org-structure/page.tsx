@@ -1,3 +1,4 @@
+'use client'
 import React, { useState } from 'react';
 import { useGetDepartmentsQuery, useGetTeamsQuery, useGetUsersQuery, useCreateDepartmentMutation, useCreateTeamMutation } from '@/store/api';
 import { useAppSelector } from '@/store/hooks';
@@ -14,13 +15,9 @@ export default function OrgStructurePage() {
   const [createDepartment] = useCreateDepartmentMutation();
   const [createTeam] = useCreateTeamMutation();
   const user = useAppSelector(state => state.login.user);
-  const allowedRoles = ['Admin', 'Manager', 'HR'];
-  const canEdit = user && allowedRoles.includes(user.role);
+ 
 
-  if (!user || !allowedRoles.includes(user.role)) {
-    return <div className="p-8 text-center text-red-600 font-bold">Access Denied</div>;
-  }
-
+ 
   const handleCreateDepartment = async (data: { name: string; description?: string }) => {
     try {
       await createDepartment(data).unwrap();
@@ -45,7 +42,7 @@ export default function OrgStructurePage() {
     <div className="p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Organization Structure</h1>
-        {canEdit && (
+
           <div className="flex gap-2">
             <button
               className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700"
@@ -60,7 +57,7 @@ export default function OrgStructurePage() {
               + Add Team
             </button>
           </div>
-        )}
+    
       </div>
       <div className="space-y-8">
         {departments && departments.length > 0 ? (

@@ -20,7 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineEye, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi';
 import { Task } from '@/types/admin/task';
-
+import ShortMonthDate from '@/utils/time/ShortMonthDate';
 // Card interface based on Task
 interface KanbanBoardProps {
   tasks: Task[];
@@ -77,7 +77,7 @@ function SortableCard({ id, card, onView, onEdit, onDelete }: { id: string; card
             </span>
           ))}
         </div>
-        <span>{card.dueDate ? new Date(card.dueDate).toLocaleDateString() : ''}</span>
+        <span>{card.dueDate ? <ShortMonthDate date={card.dueDate} /> : ''}</span>
       </div>
     </motion.div>
   );

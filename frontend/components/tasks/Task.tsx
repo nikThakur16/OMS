@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineUserAdd, HiOutlineSearch, HiOutlineFilter, HiOutlineSortAscending, HiPlus, HiViewBoards, HiViewList, HiOutlinePencil, HiOutlineTrash, HiOutlineEye } from 'react-icons/hi';
-import { Task } from '../../../types/admin/task';
+import { Task } from '@/types/admin/task';
 import {
   DndContext,
   closestCenter,
@@ -71,7 +71,7 @@ export default function TaskManagementPage() {
     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
       <div className="flex items-center gap-3">
         <span className="text-lg font-bold text-gray-700">{tasks.length} tasks</span>
-        <button className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white px-4 py-2 rounded-xl font-semibold shadow hover:from-indigo-600 hover:to-fuchsia-600 transition" onClick={() => { setModalMode('create'); setShowModal(true); }}>
+        <button className="flex items-center gap-2 bg-[#245D80] text-white px-4 py-2 rounded-xl font-semibold shadow hover:from-indigo-600 hover:to-fuchsia-600 transition" onClick={() => { setModalMode('create'); setShowModal(true); }}>
           <HiPlus /> Add New
         </button>
       </div>
@@ -134,7 +134,7 @@ export default function TaskManagementPage() {
         // Moving to a different column
         setTasks(prev =>
           prev.map(t =>
-            t._id === active.id ? { ...t, status: destCol as import('../../../types/admin/task').TaskStatus } : t
+            t._id === active.id ? { ...t, status: destCol as import('@/types/admin/task').TaskStatus } : t
           )
         );
       }
@@ -324,7 +324,7 @@ export default function TaskManagementPage() {
   );
 
   return (
-    <div className="p-6 bg-gradient-to-br from-[#e0e7ff] to-[#f4fafd] min-h-screen relative">
+    <div className="p-6 bg-white min-h-screen relative">
   
       <Toolbar />
       <div className="mb-8">

@@ -14,8 +14,8 @@ const ProjectSchema = new Schema(
     startDate: Date,
     endDate: Date,
     manager: { type: Types.ObjectId, ref: "User" },
-    teamIds: [{ type: Types.ObjectId, ref: "Team" }],
-    departmentIds: [{ type: Types.ObjectId, ref: "Department" }],
+    team: [{ type: Types.ObjectId, ref: "Team" }],
+    departments: [{ type: Types.ObjectId, ref: "Department" }],
     customFields: { type: Schema.Types.Mixed },
     deletedAt: { type: Date },
     archivedAt: { type: Date },
@@ -29,5 +29,13 @@ ProjectSchema.index({ organizationId: 1 });
 ProjectSchema.index({ status: 1 });
 ProjectSchema.index({ deletedAt: 1 });
 ProjectSchema.index({ archivedAt: 1 });
+
+ProjectSchema.virtual('tasks', {
+  ref: 'Task',
+  localField: '_id',
+  foreignField: 'project',
+});
+ProjectSchema.set('toObject', { virtuals: true });
+ProjectSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model("Project", ProjectSchema);

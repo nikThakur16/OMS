@@ -7,7 +7,7 @@ import {
   getTodayDateParam,
   formatDuration,
   formatTime,
-} from "@/utils/Time&Date";
+} from "@/utils/time/Time&Date";
 import { useLiveWorkingTimeFromSessions } from "@/utils/hooks/LiveWorkingHours";
 import { useLiveBreakTime } from "@/utils/hooks/LiveBreakingHours";
 import { useRef, useEffect } from "react";
@@ -38,7 +38,7 @@ import {
   useGetAnnouncementsQuery,
   useGetEmployeeDashboardQuery,
 } from "@/store/api";
-import { formatToUserTimeZone } from "@/utils/Time&Date";
+import { formatToUserTimeZone } from "@/utils/time/Time&Date";
 import AnnoucementsCard from "@/components/annoucements/AnnoucementsCard";
 
 type Announcement = {

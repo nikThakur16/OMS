@@ -5,7 +5,7 @@ import { HiOutlinePlus, HiOutlineSearch, HiOutlineEye, HiOutlinePencil, HiOutlin
 import { useRouter } from 'next/navigation';
 import { useGetProjectsQuery, useCreateProjectMutation } from '@/store/api';
 import CreateProjectModal from '@/components/modals/projects/createProject';
-
+import ShortMonthDate from '@/utils/time/ShortMonthDate'; 
 export default function ProjectsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +40,7 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-bold text-gray-800">Projects</h1>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:from-indigo-600 hover:to-fuchsia-600 transition-all duration-300 transform hover:scale-105"
+            className="flex items-center gap-2 bg-[#175075] text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:from-indigo-600 hover:to-fuchsia-600 transition-all duration-300 transform hover:scale-105"
           >
             <HiOutlinePlus className="text-xl" />
             Create Project
@@ -92,11 +92,7 @@ export default function ProjectsPage() {
             onClick={() => handleProjectClick(project._id)}
           >
             {/* Project Avatar */}
-            <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
-              <span className={`w-10 h-10 flex items-center justify-center rounded-full text-lg font-bold text-white shadow bg-indigo-500`}>
-                {project.name[0]}
-              </span>
-            </div>
+          
             {/* Project Header */}
             <div className="flex justify-between items-start mb-4 pt-2">
               <div className="flex-1">
@@ -113,10 +109,10 @@ export default function ProjectsPage() {
             <div className="space-y-2 mb-4">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <HiOutlineCalendar className="text-gray-400" />
-                <span>{project.startDate ? String(project.startDate).slice(0, 10) : 'N/A'} - {project.endDate ? String(project.endDate).slice(0, 10) : 'N/A'}</span>
+                <span>{project.startDate ? <ShortMonthDate date={project.startDate}  /> : 'N/A'} - {project.endDate ? <ShortMonthDate date={project.endDate} /> : 'N/A'}</span>
               </div>
               <div className="text-sm text-gray-600">
-                <span className="font-medium">Manager:</span> {project.manager || 'N/A'}
+                <span className="font-medium">Manager:</span> {project?.manager?.personalDetails?.firstName || "----"} {project?.manager?.personalDetails?.lastName}
               </div>
             </div>
             {/* Action Buttons */}
@@ -155,7 +151,7 @@ export default function ProjectsPage() {
           <p className="text-gray-500 mb-6">Create your first project to get started</p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            className="bg-[#175075] hover:bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
           >
             Create Project
           </button>

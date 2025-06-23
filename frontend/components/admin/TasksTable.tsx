@@ -1,6 +1,6 @@
 import React from "react";
 import { Task } from "@/types/admin/task";
-
+import ShortMonthDate from "@/utils/time/ShortMonthDate"; 
 interface TasksTableProps {
   tasks: Task[];
   onView: (task: Task) => void;
@@ -35,8 +35,8 @@ export default function TasksTable({ tasks, onView, onEdit, onDelete }: TasksTab
               <td className="p-3">{task.title}</td>
               <td className="p-3 capitalize">{task.status}</td>
               <td className="p-3 capitalize">{task.priority}</td>
-              <td className="p-3">{task.assignedTo.length}</td>
-              <td className="p-3">{new Date(task.dueDate).toLocaleDateString()}</td>
+              <td className="p-3">{task.assignedTo?.length || 0}</td>
+              <td className="p-3">{task.dueDate ? <ShortMonthDate date={task.dueDate} /> : ''}</td>
               <td className="p-3 space-x-2">
                 <button
                   className="text-blue-600 hover:underline"

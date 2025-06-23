@@ -1,5 +1,15 @@
 // Project Types - Based on backend Project model
 export type ProjectStatus = "active" | "archived" | "completed" | "on-hold";
+interface personalDetails {
+  firstName: string;
+  lastName: string;
+  role: string;
+  department: string;
+}
+interface manager {
+  personalDetails: personalDetails;
+  _id: string;
+}
 
 // Main Project interface
 export interface Project {
@@ -10,9 +20,9 @@ export interface Project {
   status: ProjectStatus;
   startDate?: Date;
   endDate?: Date;
-  manager?: string; // ObjectId
-  teamIds?: string[]; // ObjectIds
-  departmentIds?: string[]; // ObjectIds
+  manager?: manager; // ObjectId
+  team?: object[]; // ObjectIds
+  departments?: string[]; // ObjectIds
   customFields?: Record<string, unknown>;
   deletedAt?: Date;
   archivedAt?: Date;
@@ -27,9 +37,9 @@ export interface CreateProjectRequest {
   status?: ProjectStatus;
   startDate?: Date;
   endDate?: Date;
-  manager?: string; // ObjectId
-  teamIds?: string[]; // ObjectIds
-  departmentIds?: string[]; // ObjectIds
+  manager?: object; // ObjectId
+  team?: object[]; // ObjectIds
+  departments?: string[]; // ObjectIds
   customFields?: Record<string, unknown>;
 }
 
