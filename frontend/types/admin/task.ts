@@ -50,7 +50,7 @@ export interface TaskNotificationSettings {
 export interface Task {
   _id: string;
   organizationId: string;
-  projectId: string;
+  project: string;
   teamId?: string;
   departmentId?: string;
   title: string;
@@ -101,7 +101,7 @@ export interface Task {
 
 // Request types for API calls
 export interface CreateTaskRequest {
-  projectId: string;
+  project: string;
   title: string;
   description: string;
   dueDate: Date;

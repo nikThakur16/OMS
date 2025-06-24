@@ -185,6 +185,7 @@ export const api = createApi({
       }),
       invalidatesTags: ["Tasks"],
     }),
+
     // PROJECTS
     getProjects: builder.query<Project[], void>({
       query: () => "api/projects",
@@ -243,6 +244,53 @@ export const api = createApi({
       }),
       invalidatesTags: ["Departments"],
     }),
+
+    // PROJECT-SCOPED TASKS
+    getTasksByProject: builder.query<Task[], string>({
+      query: (project) => `api/projects/${project}/tasks`,
+      providesTags: ["Tasks"],
+    }),
+    createTaskForProject: builder.mutation<Task, { project: string; data: Partial<Task> }>({
+      query: ({ project, data }) => ({
+        url: `api/projects/${project}/tasks`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Tasks"],
+    }),
+
+    // STATUSES
+    getStatuses: builder.query<any[], { project?: string }>({
+      query: ({ project }) => {
+        let url = 'api/statuses';
+        if (project) url += `?project=${project}`;
+        return url;
+      },
+      providesTags: ['Tasks'], // Optionally add a Statuses tag if you want
+    }),
+    createStatus: builder.mutation<any, Partial<any>>({
+      query: (data) => ({
+        url: 'api/statuses',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Tasks'],
+    }),
+    updateStatus: builder.mutation<any, { id: string; data: Partial<any> }>({
+      query: ({ id, data }) => ({
+        url: `api/statuses/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Tasks'],
+    }),
+    deleteStatus: builder.mutation<any, string>({
+      query: (id) => ({
+        url: `api/statuses/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Tasks'],
+    }),
   }),
 });
 
@@ -272,4 +320,10 @@ export const {
   useCreateDepartmentMutation,
   useUpdateTeamMutation,
   useCreateTeamMutation,
+  useGetTasksByProjectQuery,
+  useCreateTaskForProjectMutation,
+  useGetStatusesQuery,
+  useCreateStatusMutation,
+  useUpdateStatusMutation,
+  useDeleteStatusMutation,
 } = api;

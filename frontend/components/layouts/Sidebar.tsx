@@ -68,7 +68,7 @@ const Sidebar = () => {
   const isActive = (path: string) => pathname?.startsWith(path);
 
   // Helper to check if a project is active
-  const isProjectActive = (projectId: string) => pathname?.includes(`/projects/${projectId}`);
+  const isProjectActive = (project: string) => pathname?.includes(`/projects/${project}`);
 
   const { data: projects } = useGetProjectsQuery();
 

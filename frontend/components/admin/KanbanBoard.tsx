@@ -24,17 +24,13 @@ import ShortMonthDate from '@/utils/time/ShortMonthDate';
 // Card interface based on Task
 interface KanbanBoardProps {
   tasks: Task[];
+  statuses: { _id: string; name: string; color?: string }[];
   onDragEnd: (result: any) => void;
   onView: (task: Task) => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onStatusDelete?: (statusId: string) => void;
 }
-
-const COLUMN_ORDER = [
-  { id: 'backlog', title: 'Backlog' },
-  { id: 'in-progress', title: 'In Progress' },
-  { id: 'done', title: 'Done' },
-];
 
 function SortableCard({ id, card, onView, onEdit, onDelete }: { id: string; card: Task; onView: () => void; onEdit: () => void; onDelete: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -83,13 +79,13 @@ function SortableCard({ id, card, onView, onEdit, onDelete }: { id: string; card
   );
 }
 
-export default function KanbanBoard({ tasks, onDragEnd, onView, onEdit, onDelete }: KanbanBoardProps) {
+export default function KanbanBoard({ tasks, statuses, onDragEnd, onView, onEdit, onDelete, onStatusDelete }: KanbanBoardProps) {
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
-  // Group tasks by status
-  const columns = COLUMN_ORDER.map(col => ({
-    ...col,
-    tasks: tasks.filter(t => t.status === col.id),
+  // Group tasks by dynamic statuses
+  const columns = statuses.map(status => ({
+    ...status,
+    tasks: tasks.filter(t => t.status === status.name),
   }));
 
   return (
@@ -101,10 +97,12 @@ export default function KanbanBoard({ tasks, onDragEnd, onView, onEdit, onDelete
     >
       <div className="flex gap-6 h-full overflow-x-auto p-6 bg-gradient-to-br from-[#e0e7ff] to-[#f4fafd] min-h-[60vh]">
         {columns.map((col) => (
-          <div key={col.id} className="flex-shrink-0 w-80 glass bg-white/40 rounded-2xl p-4 border border-white/30 backdrop-blur-md shadow-xl transition-all duration-300 hover:shadow-2xl hover:bg-white/60">
+          <div key={col._id} className="flex-shrink-0 w-80 glass bg-white/40 rounded-2xl p-4 border border-white/30 backdrop-blur-md shadow-xl transition-all duration-300 hover:shadow-2xl hover:bg-white/60">
             <div className="flex items-center mb-4">
-              <h3 className="font-bold text-lg text-gray-800 flex-grow tracking-wide uppercase drop-shadow-sm letter-spacing-[0.05em]">{col.title}</h3>
-              {/* Add card button can be implemented here if needed */}
+              <h3 className="font-bold text-lg text-gray-800 flex-grow tracking-wide uppercase drop-shadow-sm letter-spacing-[0.05em]" style={{ color: col.color || undefined }}>{col.name}</h3>
+              {onStatusDelete && (
+                <button className="ml-2 text-red-500 hover:text-red-700" onClick={() => onStatusDelete(col._id)} title="Delete status">✕</button>
+              )}
             </div>
             <SortableContext items={col.tasks.map(t => t._id)} strategy={verticalListSortingStrategy}>
               {col.tasks.map((task) => (

@@ -17,36 +17,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import ShortMonthDate from '@/utils/time/ShortMonthDate';   
-// Dummy data
-const project = {
-  name: 'Zira Project',
-  customer: 'Jane Doe',
-  priority: 'High',
-  startDate: '2024-01-01',
-  endDate: '2024-12-31',
-  tags: ['Research', 'Design', 'Development', 'Other'],
-  members: [
-    { id: '1', name: 'Alice', avatar: 'https://i.pravatar.cc/40?u=1' },
-    { id: '2', name: 'Bob', avatar: 'https://i.pravatar.cc/40?u=2' },
-    { id: '3', name: 'Carol', avatar: 'https://i.pravatar.cc/40?u=3' },
-    { id: '4', name: 'Dave', avatar: 'https://i.pravatar.cc/40?u=4' },
-  ],
-};
-
-const dummyTasks: Task[] = [
-  { _id: '1', title: 'Design login page', description: 'Create Figma wireframes', status: 'backlog', priority: 'high', dueDate: '2024-06-10', tags: ['Design'], assignedTo: ['1', '2'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-  { _id: '2', title: 'API integration', description: 'Connect frontend to backend', status: 'in-progress', priority: 'medium', dueDate: '2024-06-12', tags: ['Development'], assignedTo: ['3'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-  { _id: '3', title: 'Write docs', description: 'Document API endpoints', status: 'done', priority: 'low', dueDate: '2024-06-08', tags: ['Docs'], assignedTo: ['4'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-  { _id: '4', title: 'User testing', description: 'Collect feedback', status: 'backlog', priority: 'high', dueDate: '2024-06-15', tags: ['Research'], assignedTo: ['2', '3'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-  { _id: '5', title: 'Fix bugs', description: 'Resolve reported issues', status: 'in-progress', priority: 'critical', dueDate: '2024-06-11', tags: ['Development'], assignedTo: ['1'], createdBy: '1', organizationId: '1', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-];
-
-const statusColumns = [
-  { id: 'backlog', title: 'Backlog' },
-  { id: 'in-progress', title: 'In Progress' },
-  { id: 'done', title: 'Done' },
-  { id: 'archived', title: 'Archived' },
-];
 
 type ModalMode = 'view' | 'edit' | 'create';
 
@@ -55,7 +25,6 @@ export default function TaskManagementPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>('view');
-  const [tasks, setTasks] = useState<Task[]>(dummyTasks);
 
   // Kanban drag logic (dummy, no real drag for now)
   function handleCardClick(task: Task, mode: ModalMode = 'view') {

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   HiOutlineSearch,
   HiOutlineFilter,
@@ -13,22 +13,13 @@ import {
   HiOutlineTrash,
   HiOutlineEye,
 } from "react-icons/hi";
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useGetProjectByIdQuery } from "@/store/api";
+import { useGetProjectByIdQuery, useGetTasksByProjectQuery, useCreateTaskForProjectMutation, useUpdateTaskMutation, useDeleteTaskMutation, useGetUsersQuery, useGetStatusesQuery, useCreateStatusMutation, useUpdateStatusMutation, useDeleteStatusMutation } from "@/store/api";
 import ShortMonthDate from "@/utils/time/ShortMonthDate";
-import Tasks from "@/components/tasks/Task";
-const statusColumns = [
-  { id: "backlog", title: "Backlog" },
-  { id: "in-progress", title: "In Progress" },
-  { id: "done", title: "Done" },
-  { id: "archived", title: "Archived" },
-];
+import { TaskStatus } from '@/types/admin/task';
+import KanbanBoard from '@/components/admin/KanbanBoard';
+import TaskModal from '@/components/admin/TaskDetailsModal';
 
 interface TaskType {
   id: string;
@@ -39,6 +30,8 @@ interface TaskType {
   dueDate: string;
   tags?: string[];
   assignedTo?: string[];
+  parentTaskId?: string;
+  activityLog?: { userId: string; action: string; details?: any; timestamp: string }[];
 }
 
 function KanbanTaskCard({
@@ -184,34 +177,64 @@ function SortableTask({
   );
 }
 
+// Helper to normalize tasks from backend
+function normalizeTasks(tasks: any[] = []): TaskType[] {
+  return tasks.map((t) => ({
+    ...t,
+    id: t._id || t.id,
+    status: t.status as TaskStatus,
+    dueDate: t.dueDate ? String(t.dueDate) : '',
+  }));
+}
+
 export default function ProjectDetailsPage() {
   const params = useParams();
-  const projectId = Array.isArray(params?.projectId)
+  const project = Array.isArray(params?.projectId)
     ? params.projectId[0]
-    : params?.projectId;
-  const { data: project, isLoading, error } = useGetProjectByIdQuery(projectId);
-  console.log(project);
-  console.log(JSON.stringify(project));
+    : params?.projectId || "";
+  const { data: projectData, isLoading, error } = useGetProjectByIdQuery(project);
+  const { data: tasksData = [] } = useGetTasksByProjectQuery(project);
+  const [createTaskForProject] = useCreateTaskForProjectMutation();
+  const [updateTask] = useUpdateTaskMutation();
+  const [deleteTask] = useDeleteTaskMutation();
+  const { data: users = [] } = useGetUsersQuery();
+
+  // Fetch statuses for this project
+  const { data: statuses = [], refetch: refetchStatuses } = useGetStatusesQuery({ project });
+  const [createStatus] = useCreateStatusMutation();
+  const [updateStatus] = useUpdateStatusMutation();
+  const [deleteStatus] = useDeleteStatusMutation();
 
   const [view, setView] = useState<"kanban" | "list" | "whiteboard">("kanban");
   const [selectedTask, setSelectedTask] = useState<TaskType | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState<"view" | "edit" | "create">(
-    "view"
-  );
-  const [tasks, setTasks] = useState<TaskType[]>(project?.tasks || []);
+  const [modalMode, setModalMode] = useState<"view" | "edit" | "create">("view");
   const [newTask, setNewTask] = useState({ title: "", description: "" });
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [newComment, setNewComment] = useState("");
+  const [tasks, setTasks] = useState<TaskType[]>(normalizeTasks(tasksData));
+
+  // Modal state for creating a new status
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [newStatusName, setNewStatusName] = useState("");
+  const [newStatusColor, setNewStatusColor] = useState("#cccccc");
+
+  // Add advanced status deletion modal state
+  const [showDeleteStatusModal, setShowDeleteStatusModal] = useState(false);
+  const [statusToDelete, setStatusToDelete] = useState(null);
+  const [moveToStatus, setMoveToStatus] = useState("");
+  const [tasksInStatus, setTasksInStatus] = useState([]);
 
   useEffect(() => {
-    setTasks(project?.tasks || []);
-  }, [project]);
+    setTasks(normalizeTasks(tasksData));
+  }, [tasksData]);
 
   if (isLoading) {
     return (
       <div className="p-8 text-center text-xl text-gray-500">Loading...</div>
     );
   }
-  if (error || !project) {
+  if (error || !projectData) {
     return (
       <div className="p-8 text-center text-xl text-gray-500">
         Project not found.
@@ -219,17 +242,19 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  // Kanban drag logic (dummy, no real drag for now)
-  function handleCardClick(
-    task: TaskType,
-    mode: "view" | "edit" | "create" = "view"
-  ) {
-    setSelectedTask(task);
-    setModalMode(mode);
-    setShowModal(true);
-  }
+  const handleDragEnd = async ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const fromTask = tasksData.find((t) => t._id === active.id);
+    const toCol = KanbanBoard.COLUMN_ORDER.find(
+      (col) => col.id === over.id || tasksData.some((t) => t._id === over.id && t.status === col.id)
+    );
+    if (!fromTask || !toCol || fromTask.status === toCol.id) return;
+    await updateTask({ id: fromTask._id, data: { status: toCol.id } });
+  };
 
-  // ... (reuse the KanbanBoard, TaskList, Whiteboard, TaskModal, FloatingActionButton, etc. from tasks/page.tsx, but use project/tasks)
+  const handleView = (task) => { setSelectedTask(task); setModalMode('view'); setShowModal(true); };
+  const handleEdit = (task) => { setSelectedTask(task); setModalMode('edit'); setShowModal(true); };
+  const handleDelete = async (task) => { await deleteTask(task._id); };
 
   // Header
   const Header = () => (
@@ -240,53 +265,53 @@ export default function ProjectDetailsPage() {
           <div className="flex items-center justify-between">
             {" "}
             <h2 className="text-3xl md:text-4xl font-extrabold text-white drop-shadow-lg mb-2">
-              {project.name}
+              {projectData.name}
             </h2>
           </div>
           <div className="flex flex-wrap gap-2 items-center mb-2">
             <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full font-semibold uppercase tracking-wider">
-              Status: {project.status}
+              Status: {projectData.status}
             </span>
             <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">
               Start:{" "}
-              {project.startDate ? (
-                <ShortMonthDate date={project.startDate} />
+              {projectData.startDate ? (
+                <ShortMonthDate date={projectData.startDate} />
               ) : (
                 "N/A"
               )}
             </span>
             <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">
               Due:{" "}
-              {project.endDate ? (
-                <ShortMonthDate date={project.endDate} />
+              {projectData.endDate ? (
+                <ShortMonthDate date={projectData.endDate} />
               ) : (
                 "N/A"
               )}
             </span>
           </div>
-          {project.description && (
+          {projectData.description && (
             <div className="text-white/80 text-sm mb-2">
-              {project.description}
+              {projectData.description}
             </div>
           )}
-          {project.manager && (
+          {projectData.manager && (
             <div className="text-white/80 text-sm">
               Manager:{" "}
               <span className="font-bold text-white">
-                {project?.manager?.personalDetails.firstName}{" "}
-                {project?.manager?.personalDetails.lastName}
+                {projectData?.manager?.personalDetails.firstName}{" "}
+                {projectData?.manager?.personalDetails.lastName}
               </span>
             </div>
           )}
-          {project.team && project.team.length > 0 && (
+          {projectData.team && projectData.team.length > 0 && (
             <div className="text-white/80 text-sm">
-              Teams: {project.team.map((team: any) => team.name).join(", ")}
+              Teams: {projectData.team.map((team: any) => team.name).join(", ")}
             </div>
           )}
-          {project.departments && project.departments.length > 0 && (
+          {projectData.departments && projectData.departments.length > 0 && (
             <div className="text-white/80 text-sm">
               Departments:{" "}
-              {project.departments
+              {projectData.departments
                 .map((department: any) => department.name)
                 .join(", ")}
             </div>
@@ -305,14 +330,12 @@ export default function ProjectDetailsPage() {
     </div>
   );
 
-  // ... (reuse Toolbar, KanbanBoard, TaskList, Whiteboard, TaskModal, FloatingActionButton from tasks/page.tsx, but use tasks state)
-
   // Toolbar
   const Toolbar = () => (
     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
       <div className="flex items-center gap-3">
         <span className="text-lg font-bold text-gray-700">
-          {tasks.length} tasks
+          {tasksData.length} tasks
         </span>
         <button
           className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white px-4 py-2 rounded-xl font-semibold shadow hover:from-indigo-600 hover:to-fuchsia-600 transition"
@@ -322,6 +345,12 @@ export default function ProjectDetailsPage() {
           }}
         >
           <HiPlus /> Add New
+        </button>
+        <button
+          className="flex items-center gap-2 bg-gradient-to-r from-green-400 to-blue-400 text-white px-4 py-2 rounded-xl font-semibold shadow hover:from-green-500 hover:to-blue-500 transition"
+          onClick={() => setShowStatusModal(true)}
+        >
+          <HiPlus /> Add Status
         </button>
       </div>
       <div className="flex items-center gap-2">
@@ -375,68 +404,6 @@ export default function ProjectDetailsPage() {
     </div>
   );
 
-  // Kanban Board with DnD
-  const KanbanBoard = () => (
-    <DndContext
-      collisionDetection={closestCenter}
-      onDragEnd={({ active, over }) => {
-        if (!over || active.id === over.id) return;
-        // Find the task and its column
-        const fromCol = statusColumns.find((col) =>
-          tasks.some((t) => t.id === active.id && t.status === col.id)
-        );
-        const toCol = statusColumns.find(
-          (col) =>
-            col.id === over.id ||
-            tasks.some((t) => t.id === over.id && t.status === col.id)
-        );
-        if (!fromCol || !toCol) return;
-        if (fromCol.id === toCol.id) return;
-        setTasks((tasks) =>
-          tasks.map((t) =>
-            t.id === active.id ? { ...t, status: toCol.id } : t
-          )
-        );
-      }}
-    >
-      <div className="flex gap-6 h-full overflow-x-auto p-2 bg-transparent">
-        {statusColumns.map((col) => (
-          <div
-            key={col.id}
-            className="flex-shrink-0 w-80 glass bg-white/40 rounded-2xl p-4 border border-white/30 backdrop-blur-md shadow-xl transition-all duration-300 hover:shadow-2xl hover:bg-white/60"
-          >
-            <div className="flex items-center mb-4">
-              <h3 className="font-bold text-lg text-gray-800 flex-grow tracking-wide uppercase drop-shadow-sm letter-spacing-[0.05em]">
-                {col.title}
-              </h3>
-              <button className="text-indigo-500 hover:text-indigo-700 ml-2">
-                <HiPlus />
-              </button>
-            </div>
-            <SortableContext
-              items={tasks.filter((t) => t.status === col.id).map((t) => t.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {tasks
-                .filter((t) => t.status === col.id)
-                .map((task) => (
-                  <SortableTask
-                    key={task.id}
-                    task={task}
-                    onView={() => handleCardClick(task, "view")}
-                    onEdit={() => handleCardClick(task, "edit")}
-                    onDelete={() =>
-                      setTasks(tasks.filter((t) => t.id !== task.id))
-                    }
-                  />
-                ))}
-            </SortableContext>
-          </div>
-        ))}
-      </div>
-    </DndContext>
-  );
-
   // Task List View
   const TaskList = () => (
     <div className="rounded-2xl bg-white/60 border border-white/30 backdrop-blur-md shadow-xl p-4">
@@ -479,21 +446,19 @@ export default function ProjectDetailsPage() {
               </td>
               <td>
                 <button
-                  onClick={() => handleCardClick(task, "view")}
+                  onClick={() => handleView(task)}
                   className="text-gray-400 hover:text-blue-600 mx-1"
                 >
                   <HiOutlineEye />
                 </button>
                 <button
-                  onClick={() => handleCardClick(task, "edit")}
+                  onClick={() => handleEdit(task)}
                   className="text-gray-400 hover:text-green-600 mx-1"
                 >
                   <HiOutlinePencil />
                 </button>
                 <button
-                  onClick={() =>
-                    setTasks(tasks.filter((t) => t.id !== task.id))
-                  }
+                  onClick={() => handleDelete(task)}
                   className="text-gray-400 hover:text-red-600 mx-1"
                 >
                   <HiOutlineTrash />
@@ -527,171 +492,122 @@ export default function ProjectDetailsPage() {
     </div>
   );
 
-  // Task Modal
-  const TaskModal = () => (
-    <AnimatePresence>
-      {showModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-        >
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl relative"
-          >
+  // Add Status Modal
+  const AddStatusModal = () => (
+    showStatusModal ? (
+      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl p-6 shadow-xl w-80">
+          <h3 className="font-bold mb-2">Add Status</h3>
+          <input
+            className="border rounded px-2 py-1 w-full mb-2"
+            placeholder="Status name"
+            value={newStatusName}
+            onChange={e => setNewStatusName(e.target.value)}
+          />
+          <input
+            type="color"
+            className="w-8 h-8 mb-2"
+            value={newStatusColor}
+            onChange={e => setNewStatusColor(e.target.value)}
+          />
+          <div className="flex gap-2 mt-2">
             <button
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl"
-              onClick={() => setShowModal(false)}
-            >
-              &times;
-            </button>
-            {modalMode === "view" && selectedTask && (
-              <div>
-                <h2 className="text-2xl font-bold mb-2">
-                  {selectedTask.title}
-                </h2>
-                <div className="text-gray-600 mb-2">
-                  {selectedTask.description}
-                </div>
-                <div className="flex gap-2 mb-2">
-                  {selectedTask.tags?.map((tag: string) => (
-                    <span
-                      key={tag}
-                      className="bg-blue-100 text-xs px-2 py-1 rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="text-sm text-gray-500 mb-2">
-                  Due: {selectedTask.dueDate}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                    onClick={() => setModalMode("edit")}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                    onClick={() => {
-                      setTasks(tasks.filter((t) => t.id !== selectedTask.id));
-                      setShowModal(false);
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            )}
-            {modalMode === "edit" && selectedTask && (
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Edit Task</h2>
-                {/* Dummy edit form */}
-                <input
-                  className="w-full mb-2 p-2 border rounded"
-                  defaultValue={selectedTask.title}
-                />
-                <textarea
-                  className="w-full mb-2 p-2 border rounded"
-                  defaultValue={selectedTask.description}
-                />
-                <button
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2"
-                  onClick={() => setShowModal(false)}
-                >
-                  Save
-                </button>
-                <button
-                  className="px-4 py-2 bg-gray-300 rounded"
-                  onClick={() => setModalMode("view")}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-            {modalMode === "create" && (
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Create Task</h2>
-                <input
-                  className="w-full mb-2 p-2 border rounded"
-                  placeholder="Title"
-                  value={newTask.title}
-                  onChange={e => setNewTask(t => ({ ...t, title: e.target.value }))}
-                />
-                <textarea
-                  className="w-full mb-2 p-2 border rounded"
-                  placeholder="Description"
-                  value={newTask.description}
-                  onChange={e => setNewTask(t => ({ ...t, description: e.target.value }))}
-                />
-                <button
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2"
-                  onClick={() => {
-                    setTasks(ts => [
-                      ...ts,
-                      {
-                        id: Date.now().toString(),
-                        title: newTask.title,
-                        description: newTask.description,
-                        status: "backlog",
-                        priority: "low",
-                        dueDate: "",
-                        tags: [],
-                        assignedTo: [],
-                      },
-                    ]);
-                    setShowModal(false);
-                    setNewTask({ title: "", description: "" });
-                  }}
-                >
-                  Create
-                </button>
-                <button
-                  className="px-4 py-2 bg-gray-300 rounded"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+              className="bg-indigo-500 text-white px-3 py-1 rounded"
+              onClick={async () => {
+                if (!newStatusName) return;
+                await createStatus({ name: newStatusName, color: newStatusColor, project });
+                setShowStatusModal(false);
+                setNewStatusName("");
+                setNewStatusColor("#cccccc");
+                refetchStatuses();
+              }}
+            >Add</button>
+            <button className="bg-gray-200 px-3 py-1 rounded" onClick={() => setShowStatusModal(false)}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    ) : null
   );
 
-  // Floating Action Button
-  const FloatingActionButton = () => (
-    <div className="fixed bottom-8 right-8 z-50">
-      <motion.button
-        whileTap={{ scale: 0.95 }}
-        className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-xl hover:from-indigo-600 hover:to-fuchsia-600 transition"
-      >
-        <HiPlus />
-      </motion.button>
-    </div>
+  // Advanced Delete Status Modal
+  const DeleteStatusModal = () => (
+    showDeleteStatusModal && statusToDelete ? (
+      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl p-6 shadow-xl w-96">
+          <h3 className="font-bold mb-2">Delete Status: {statusToDelete.name}</h3>
+          <p className="mb-2 text-sm text-gray-700">This status has {tasksInStatus.length} tasks. Please select a status to move them to before deleting.</p>
+          <ul className="mb-2 max-h-32 overflow-y-auto text-xs text-gray-600">
+            {tasksInStatus.map((t) => <li key={t._id}>• {t.title}</li>)}
+          </ul>
+          <select
+            className="border rounded px-2 py-1 w-full mb-2"
+            value={moveToStatus}
+            onChange={e => setMoveToStatus(e.target.value)}
+          >
+            <option value="">Select status to move tasks</option>
+            {statuses.filter(s => s._id !== statusToDelete._id).map(s => (
+              <option key={s._id} value={s.name}>{s.name}</option>
+            ))}
+          </select>
+          <div className="flex gap-2 mt-2">
+            <button
+              className="bg-indigo-500 text-white px-3 py-1 rounded"
+              disabled={!moveToStatus}
+              onClick={async () => {
+                // Move all tasks to new status
+                for (const t of tasksInStatus) {
+                  await updateTask({ id: t._id, data: { status: moveToStatus } });
+                }
+                await deleteStatus(statusToDelete._id);
+                setShowDeleteStatusModal(false);
+                setStatusToDelete(null);
+                setMoveToStatus("");
+                setTasksInStatus([]);
+                refetchStatuses();
+              }}
+            >Move & Delete</button>
+            <button className="bg-gray-200 px-3 py-1 rounded" onClick={() => { setShowDeleteStatusModal(false); setStatusToDelete(null); }}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    ) : null
   );
 
   return (
-    <div className="p-6 bg-white min-h-screen relative rounded-md shadow-lg">
+    <div className="p-6 bg-gradient-to-br from-[#e0e7ff] to-[#f4fafd] min-h-screen relative">
       <Header />
-    
-        <>
-   
-          <div className="mb-8">
-          <Tasks/>
-          
-          </div>
-   
-          <FloatingActionButton />
-        </>
-      ) 
+      <Toolbar />
+      <KanbanBoard
+        tasks={tasksData}
+        statuses={statuses}
+        onDragEnd={handleDragEnd}
+        onView={handleView}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onStatusDelete={async (statusId) => {
+          const statusObj = statuses.find(s => s._id === statusId);
+          if (!statusObj) return;
+          const tasksInCol = tasksData.filter(t => t.status === statusObj.name);
+          if (tasksInCol.length > 0) {
+            setStatusToDelete(statusObj);
+            setTasksInStatus(tasksInCol);
+            setShowDeleteStatusModal(true);
+            return;
+          }
+          await deleteStatus(statusId);
+          refetchStatuses();
+        }}
+      />
+      {showModal && (
+        <TaskModal
+          task={selectedTask}
+          mode={modalMode}
+          onClose={() => setShowModal(false)}
+          statuses={statuses}
+        />
+      )}
+      <AddStatusModal />
+      <DeleteStatusModal />
     </div>
   );
 }

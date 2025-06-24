@@ -3,6 +3,8 @@ const router = express.Router();
 const taskController = require("../controllers/taskController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
+// NOTE: Project-scoped task routes are now under projectRoutes.js
+
 // Only Admins can create tasks
 router.post("/", protect, authorize("Admin"), taskController.createTask);
 

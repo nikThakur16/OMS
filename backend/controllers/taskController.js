@@ -3,8 +3,8 @@ const Task = require("../models/Task");
 // Create a new task
 exports.createTask = async (req, res) => {
   try {
-    const { projectId, ...taskData } = req.body;
-    const task = new Task({ ...taskData, project: projectId });
+    const { project, ...taskData } = req.body;
+    const task = new Task({ ...taskData, project });
     await task.save();
     res.status(201).json(task);
   } catch (err) {
@@ -16,7 +16,7 @@ exports.createTask = async (req, res) => {
 exports.getTasks = async (req, res) => {
   try {
     const filter = { ...req.query }; // You can add more advanced filtering here
-    const tasks = await Task.find({ project: projectId  } ) ;
+    const tasks = await Task.find({ project });
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -63,8 +63,8 @@ exports.deleteTask = async (req, res) => {
 // Get all tasks for a project
 exports.getTasksByProject = async (req, res) => {
   try {
-    const { projectId } = req.params;
-    const tasks = await Task.find({ project: projectId });
+    const { project } = req.params;
+    const tasks = await Task.find({ project });
   
     res.json(tasks);
   } catch (err) {

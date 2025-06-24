@@ -13,6 +13,7 @@ const taskRoutes = require("./routes/taskRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const departmentRoutes = require("./routes/departmentRoutes");
+const statusRoutes = require('./routes/statusRoutes');
 
 app.use(cookieParser());
 
@@ -39,6 +40,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/departments", departmentRoutes);
+app.use('/api/statuses', statusRoutes);
 
 // Connect to MongoDB
 mongoose

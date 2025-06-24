@@ -26,7 +26,7 @@ const ActivitySchema = new Schema({
 const TaskSchema = new Schema(
   {
     organizationId: { type: Types.ObjectId, ref: "Organization", required: true },
-    projectId: { type: Types.ObjectId, ref: "Project", required: true },
+    project: { type: Types.ObjectId, ref: "Project", required: true },
     teamId: { type: Types.ObjectId, ref: "Team" },
     departmentId: { type: Types.ObjectId, ref: "Department" },
     title: { type: String, required: true, trim: true },
@@ -53,19 +53,9 @@ const TaskSchema = new Schema(
     hourlyRate: Number,
     budgetedCost: Number,
     actualCost: Number,
-    status: {
-      type: String,
-      enum: [
-        "backlog",
-        "todo",
-        "in-progress",
-        "in-review",
-        "blocked",
-        "done",
-        "cancelled",
-      ],
-      default: "backlog",
-    },
+    status: { type: String, required: true },
+    statusRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Status', required: false },
+    statusColor: { type: String, required: false },
     priority: {
       type: String,
       enum: ["low", "medium", "high", "critical"],
@@ -108,7 +98,7 @@ const TaskSchema = new Schema(
 );
 
 // Define all indexes explicitly
-TaskSchema.index({ projectId: 1 });
+TaskSchema.index({ project: 1 });
 TaskSchema.index({ assignedTo: 1 });
 TaskSchema.index({ status: 1 });
 TaskSchema.index({ dueDate: 1 });
