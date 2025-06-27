@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useGetProjectsQuery, useCreateProjectMutation } from '@/store/api';
 import CreateProjectModal from '@/components/modals/projects/createProject';
 import ShortMonthDate from '@/utils/time/ShortMonthDate'; 
+import { useAppSelector } from '@/store/hooks';
+import EditProjectModal from '@/components/modals/projects/EditProjectModal';
+import { Project } from '@/types/admin/project';
 export default function ProjectsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -13,6 +16,18 @@ export default function ProjectsPage() {
   const router = useRouter();
   const { data: projectsData, isLoading, error } = useGetProjectsQuery();
   const [createProject] = useCreateProjectMutation();
+  const loggedUser = useAppSelector((state) => state?.login?.user);
+  const[showMenu, setShowMenu] = useState(false);
+  const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  // Helper to get status colors
+  const statusColors: { [key: string]: string } = {
+    active: "bg-green-100 text-green-800",
+    "on-hold": "bg-yellow-100 text-yellow-800",
+    completed: "bg-blue-100 text-blue-800",
+    archived: "bg-red-100 text-red-800",
+  };
 
   // Filter projects based on search and status
   const filteredProjects = (projectsData || []).filter(project => {
@@ -22,8 +37,11 @@ export default function ProjectsPage() {
     return matchesSearch && matchesStatus;
   });
 
+
   const handleProjectClick = (id: string) => {
-    router.push(`/admin/projects/${id}`);
+    if (loggedUser?.role) {
+      router.push(`/${loggedUser.role.toLowerCase()}/projects/${id}`);
+    }
   };
 
   // Placeholder for delete (should call backend API)
@@ -31,22 +49,28 @@ export default function ProjectsPage() {
     // TODO: Implement delete project API call
     alert('Delete project not implemented');
   };
+  const handleEditClose = () => {
+    setShowEditModal(false);
+    setSelectedProject(null);
+  };
 
   return (
-    <div className="p-6 bg-gradient-to-br from-[#e0e7ff] to-[#f4fafd] min-h-screen">
+    <div className="p-6 bg-white min-h-screen">
       {/* Header */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-3xl font-bold text-gray-800">Projects</h1>
-          <button
+          <h1 className="text-3xl font-bold  text-[#04567B]">Projects</h1>
+          {loggedUser && loggedUser.role!=="Employee" &&(
+            <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 bg-[#175075] text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:from-indigo-600 hover:to-fuchsia-600 transition-all duration-300 transform hover:scale-105"
           >
             <HiOutlinePlus className="text-xl" />
             Create Project
           </button>
+          )}
         </div>
-        <p className="text-gray-600">Manage and track all your projects in one place</p>
+        <p className="text-[#04567B] font-semibold">Manage and track all your projects in one place</p>
       </div>
 
       {/* Filters and Search */}
@@ -96,14 +120,57 @@ export default function ProjectsPage() {
             {/* Project Header */}
             <div className="flex justify-between items-start mb-4 pt-2">
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-800 mb-1">{project.name}</h3>
+                <h3 className="text-xl font-bold text-[#04567B] mb-1">{project.name}</h3>
                 <p className="text-gray-600 text-sm line-clamp-2">{project.description}</p>
               </div>
               <div className="flex flex-col gap-2 ml-4 items-end">
-                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-800">
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${statusColors[project.status] || 'bg-gray-200 text-gray-800'}`}>
                   {project.status}
                 </span>
+                
+                <img onClick={(e:React.MouseEvent)=> {
+                  e.stopPropagation();
+                  setOpenMenuProjectId(project._id);
+                  setSelectedProject(project);  
+                  setShowMenu(!showMenu);
+               
+                }} className='absolute right-2 top-2' width="14" height="14" src="https://img.icons8.com/color/48/menu-2.png" alt="menu-2"/>
+              
               </div>
+              {openMenuProjectId===project._id && showMenu && (
+                <div className="absolute right-2 top-10 bg-white shadow-lg flex flex-col  items-center  rounded-lg p-4 w-48 z-30">
+                  <button
+                    onClick={() => router.push(`/${loggedUser?.role.toLowerCase()}/projects/${project._id}`)}
+                    className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors mb-2"
+                  >
+                    <HiOutlineEye  />
+                    View Details
+                  </button>
+                  {loggedUser && loggedUser.role !== "Employee" && (
+                   <div onClick={()=>setShowEditModal(!showEditModal)} className='flex flex-col '>
+                     <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedProject(project);
+                      setShowEditModal(true);
+                    }}
+                      className="flex items-center gap-3 text-gray-700 hover:text-indigo-600 transition-colors mb-2"
+                    >
+                      <HiOutlinePencil  />
+                      Edit Project
+                    </button>
+                    <button
+                    onClick={e => { e.stopPropagation(); handleDeleteProject(); }}
+                    className=" flex gap-2 items-center text-gray-700 hover:text-red-600 transition-colors"
+                    title="Delete Project"
+                  >
+                    <HiOutlineTrash  />
+                    delete Project
+                  </button>
+                   </div>
+                  )}
+                </div>
+              )}
             </div>
             {/* Dates */}
             <div className="space-y-2 mb-4">
@@ -115,30 +182,8 @@ export default function ProjectsPage() {
                 <span className="font-medium">Manager:</span> {project?.manager?.personalDetails?.firstName || "----"} {project?.manager?.personalDetails?.lastName}
               </div>
             </div>
-            {/* Action Buttons */}
-            <div className="flex gap-2 absolute top-4 right-4 z-20">
-              <button
-                onClick={e => { e.stopPropagation(); handleProjectClick(project._id); }}
-                className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-colors shadow"
-                title="View Details"
-              >
-                <HiOutlineEye />
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); /* Handle edit */ }}
-                className="p-2 text-gray-400 hover:text-green-600 transition-colors"
-                title="Edit Project"
-              >
-                <HiOutlinePencil />
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); handleDeleteProject(); }}
-                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                title="Delete Project"
-              >
-                <HiOutlineTrash />
-              </button>
-            </div>
+         
+            
           </motion.div>
         ))}
       </div>
@@ -148,13 +193,18 @@ export default function ProjectsPage() {
         <div className="text-center py-12">
           <div className="text-gray-400 text-6xl mb-4">📁</div>
           <h3 className="text-xl font-semibold text-gray-600 mb-2">No projects found</h3>
-          <p className="text-gray-500 mb-6">Create your first project to get started</p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-[#175075] hover:bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-          >
-            Create Project
-          </button>
+         
+         {loggedUser && loggedUser.role!=="Employee" && (
+       <div> 
+            <p className="text-gray-500 mb-6">Create your first project to get started</p>
+           <button
+           onClick={() => setShowCreateModal(true)}
+           className="bg-[#175075] hover:bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+         >
+           Create Project
+         </button>
+       </div>
+         )}
         </div>
       )}
 
@@ -172,6 +222,7 @@ export default function ProjectsPage() {
           }
         }}
       />
+      <EditProjectModal open={showEditModal} project={selectedProject} onClose={handleEditClose}/>
     </div>
   );
 } 

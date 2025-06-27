@@ -14,11 +14,32 @@ const ProjectSchema = new Schema(
     startDate: Date,
     endDate: Date,
     manager: { type: Types.ObjectId, ref: "User" },
+    assignedTo: [{ type: Types.ObjectId, ref: "User" }],
     team: [{ type: Types.ObjectId, ref: "Team" }],
     departments: [{ type: Types.ObjectId, ref: "Department" }],
-    customFields: { type: Schema.Types.Mixed },
+    customFields: [
+      {
+        name: { type: String, required: true },
+        type: {
+          type: String,
+          enum: ["text", "number", "date", "select"],
+          required: true,
+        },
+        options: [{ type: String }], // For 'select' type
+      },
+    ],
+    customFieldValues: { type: Schema.Types.Mixed, default: {} },
+    slackChannel: String,
+    teamsChannel: String,
     deletedAt: { type: Date },
     archivedAt: { type: Date },
+    estimatedHours: Number,
+    actualHours: Number,
+    hourlyRate: Number,
+    budgetedCost: Number,
+    actualCost: Number,
+    budget: Number,
+    currency: String,
   },
   { timestamps: true }
 );

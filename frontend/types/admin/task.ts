@@ -56,14 +56,14 @@ export interface Task {
   title: string;
   description: string;
   tags?: string[];
-  createdBy: string; // ObjectId
+  createdBy?: string; // ObjectId
   updatedBy?: string; // ObjectId
   assignedTo?: string[]; // ObjectIds
   watchers?: string[]; // ObjectIds
   visibility: TaskVisibility;
   allowedRoles?: string[];
   startDate?: Date;
-  dueDate: Date;
+  dueDate?: Date;
   dueDateTz?: string;
   locale?: string;
   isRecurring?: boolean;

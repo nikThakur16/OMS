@@ -1,22 +1,39 @@
 const Task = require("../models/Task");
 
-// Create a new task
+// Create a new task under a project
 exports.createTask = async (req, res) => {
   try {
-    const { project, ...taskData } = req.body;
-    const task = new Task({ ...taskData, project });
+    const { projectId } = req.params;
+
+    if (!projectId) {
+      return res.status(400).json({ error: "projectId is required in URL" });
+    }
+
+    // ✅ Get data from request body
+    const taskData = req.body;
+
+    // ✅ Inject createdBy from authenticated user
+    const task = new Task({
+      ...taskData,
+      project: projectId,
+      createdBy: req.user._id, // Use the user attached by the `protect` middleware
+    });
+
     await task.save();
+
     res.status(201).json(task);
   } catch (err) {
+    console.error("Task creation failed:", err.message);
     res.status(400).json({ error: err.message });
   }
 };
 
-// Get all tasks (with optional filters)
-exports.getTasks = async (req, res) => {
+
+// Get all tasks for a project
+exports.getTasksByProject = async (req, res) => {
   try {
-    const filter = { ...req.query }; // You can add more advanced filtering here
-    const tasks = await Task.find({ project });
+    const { projectId } = req.params;
+    const tasks = await Task.find({ project: projectId });
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -47,27 +64,7 @@ exports.updateTask = async (req, res) => {
 
 // Soft delete a task
 exports.deleteTask = async (req, res) => {
-  try {
-    const task = await Task.findByIdAndUpdate(
-      req.params.id,
-      { deletedAt: new Date() },
-      { new: true }
-    );
-    if (!task) return res.status(404).json({ error: "Task not found" });
-    res.json({ message: "Task soft-deleted", task });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Get all tasks for a project
-exports.getTasksByProject = async (req, res) => {
-  try {
-    const { project } = req.params;
-    const tasks = await Task.find({ project });
-  
-    res.json(tasks);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const task = await Task.findByIdAndDelete(req.params.id);
+  if (!task) return res.status(404).json({ error: "Task not found" });
+  res.json({ message: "Task deleted" });
 };

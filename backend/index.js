@@ -41,6 +41,7 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use('/api/statuses', statusRoutes);
+app
 
 // Connect to MongoDB
 mongoose

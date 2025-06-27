@@ -1,125 +1,394 @@
-// MasterpieceKanban.tsx
-// The ultimate, memorable Kanban board component
-import React from 'react';
+import React, { useState, useEffect,useRef, useMemo } from 'react';
 import {
   DndContext,
   closestCenter,
   PointerSensor,
-  KeyboardSensor,
   useSensor,
   useSensors,
   DragOverlay,
-  MeasuringStrategy,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import moment from 'moment';
+import { HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi';
+import AssigneesModal from './AssigneesModal';
+import { useUpdateTaskMutation } from '@/store/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiOutlineEye, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi';
-import { Task } from '@/types/admin/task';
-import ShortMonthDate from '@/utils/time/ShortMonthDate';
-// Card interface based on Task
-interface KanbanBoardProps {
-  tasks: Task[];
-  statuses: { _id: string; name: string; color?: string }[];
-  onDragEnd: (result: any) => void;
-  onView: (task: Task) => void;
-  onEdit: (task: Task) => void;
-  onDelete: (task: Task) => void;
-  onStatusDelete?: (statusId: string) => void;
+import useClickOutside from '@/utils/hooks/clickOutsideHook';
+import DeleteConfirm from '../modals/confirmation/DeleteConfirm';
+const columnsOrder = ['todo', 'inprogress', 'done'];
+const statusTitles = {
+  todo: 'To Do',
+  inprogress: 'In Progress',
+  done: 'Done',
+};
+
+interface User {
+  _id: string;
+  personalDetails: {
+    firstName: string;
+    lastName: string;
+    department?: string;
+  };
+  team?: string[];
+  email?: string;
+  
+  // add other fields as needed
 }
 
-function SortableCard({ id, card, onView, onEdit, onDelete }: { id: string; card: Task; onView: () => void; onEdit: () => void; onDelete: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+interface Task {
+  _id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  dueDate: string;
+  tags?: string[];
+  assignedTo?: string[];
+}
+
+interface KanbanBoardProps {
+  tasks: Task[];
+  onStatusChange: (taskId: string, newStatus: string) => void;
+  users: User[];
+  onUpdateTask: (update: { id: string; data: Partial<Task> }) => Promise<any>;
+  onViewTask: (task: Task) => void;
+  onEditTask: (task: Task) => void;
+  onDeleteTask: (task: Task) => void;
+}
+
+const priorityClasses = {
+  low: {
+    badge: 'bg-green-500/30 text-green-700',
+    border: 'border-green-500',
+  },
+  medium: {
+    badge: 'bg-yellow-500/30 text-yellow-700',
+    border: 'border-yellow-500',
+  },
+  high: {
+    badge: 'bg-orange-500/30 text-orange-700',
+    border: 'border-orange-500',
+  },
+  critical: {
+    badge: 'bg-red-500/30 text-red-700',
+    border: 'border-red-500',
+  },
+};
+
+function KanbanCard({ task, onShowAssignees, onViewDetails, onEditTask, onDeleteTask, users, isOverlay = false }: {
+    task: Task;
+    onShowAssignees: (task: Task) => void;
+    onViewDetails: (task: Task) => void;
+    onEditTask: (task: Task) => void;
+    onDeleteTask: (task: Task) => void;
+    users: User[];
+    isOverlay?: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task._id,
+    data: { task },
+  });
+
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : 1,
-    boxShadow: isDragging ? '0 8px 32px 0 rgba(31,38,135,0.37)' : undefined,
-    opacity: isDragging ? 0.7 : 1,
+    transform: CSS.Translate.toString(transform),
+    boxShadow: isOverlay ? '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1)' : undefined,
   };
+  
+  const priorityConfig = priorityClasses[task.priority] || priorityClasses.medium;
+  const assignedCount = task.assignedTo?.length || 0;
+
+  const handleAssigneeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onShowAssignees(task);
+  };
+  
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEditTask(task);
+  };
+  
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowConfirm(true);
+    setShowMenu(false);
+  };
+
+  const handleCardClick = () => {
+    onViewDetails(task);
+  };
+
+  const [showMenu, setShowMenu] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleMenuClick = (e:React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu((prev) => !prev);
+    
+    setShowConfirm(false);
+  };
+
+  const handleConfirmDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowConfirm(false);
+    onDeleteTask(task);
+  };
+  const onClose=()=>{
+    setShowMenu(false);
+    setShowConfirm(false);
+
+
+  }
+  const menuRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useClickOutside(menuRef, () => setShowMenu(false));
+  useClickOutside(modalRef, onClose);
+
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
       {...listeners}
-      className="glass bg-white/60 rounded-xl shadow-lg p-4 mb-3 cursor-grab hover:shadow-2xl border border-white/30 backdrop-blur-md transition-all duration-200 hover:bg-white/80 hover:scale-[1.025]"
-      layout
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.98 }}
+      {...attributes}
+      onClick={handleCardClick}
+      className={`group flex flex-col  justify-between relative w-full bg-white h-[150px] text-black rounded-lg shadow-md p-3.5 border-l-4 transition-all duration-200 hover:shadow-xl cursor-grab ${priorityConfig.border} ${isDragging && !isOverlay ? "opacity-30" : "opacity-100"}`}
     >
-      <div className="flex justify-between items-start">
-        <h4 className="font-semibold text-sm text-gray-800 truncate max-w-[70%]">{card.title}</h4>
-        <div className="flex gap-1">
-          <button onClick={onView} className="text-gray-400 hover:text-blue-600 transition"><HiOutlineEye /></button>
-          <button onClick={onEdit} className="text-gray-400 hover:text-green-600 transition"><HiOutlinePencil /></button>
-          <button onClick={onDelete} className="text-gray-400 hover:text-red-600 transition"><HiOutlineTrash /></button>
-        </div>
+      <div  className="absolute top-2 right-2 ">
+        <button onClick={handleMenuClick}>
+          <img width="18" height="18" src="https://img.icons8.com/color/48/menu-2.png" alt="menu-2"/>
+        </button>
+        {showMenu && (
+          <div ref={menuRef} className="absolute border-[#175075] right-0 mt-8 w-26 bg-zinc-100 border rounded shadow-lg z-50">
+            <button
+              className="block w-full font-semibold  px-2 py-1 text-[#175075]   shadow-lg  rounded cursor-pointer"
+              onClick={handleDeleteClick}
+            >
+              Delete Task
+            </button>
+          </div>
+        )}
+        {showConfirm && (
+          // <div
+          //   ref={modalRef}
+          //   className="absolute right-0 mt-2 w-48 bg-white border rounded shadow z-50"
+          // >
+          //   <div className="px-4 py-2 text-gray-700">Are you sure you want to delete?</div>
+          //   <div className="flex justify-end gap-2 px-4 pb-2">
+          //     <button
+          //       className="px-2 py-1 text-gray-500 hover:text-gray-700"
+          //       onClick={e => {
+          //         e.stopPropagation();
+          //         setShowConfirm(false);
+          //       }}
+          //     >
+          //       Cancel
+          //     </button>
+          //     <button
+          //       className="px-2 py-1 text-red-600 hover:bg-red-100 rounded"
+          //       onClick={e => {
+          //         e.stopPropagation();
+          //         handleConfirmDelete(e);
+          //       }}
+          //     >
+          //       Delete
+          //     </button>
+          //   </div>
+          // </div>
+<div className='absolute right-0 mt-2 w-48 bg-black-900/40 border rounded shadow z-50'>
+
+<DeleteConfirm
+          handleDelete={handleConfirmDelete}
+          onClose={onClose}
+          Data={task}
+          open={showConfirm}
+       
+          modalRef={modalRef}
+        />
+</div>
+        )}
       </div>
-      <div className="flex flex-wrap gap-1 mt-2">
-        {card.tags?.map((tag) => (
-          <span key={tag} className="bg-gradient-to-r from-blue-200 to-purple-200 text-xs px-2 py-1 rounded-full shadow-sm">{tag}</span>
-        ))}
+      <div className="flex justify-between items-start ">
+        <h3 className="text-base font-semibold  pr-10">{task.title}</h3>
+        <span className={`text-xs px-2 py-1 text-black mr-4 rounded-full font-bold flex-shrink-0 ${priorityConfig.badge}`}>
+          {task.priority}
+        </span>
       </div>
-      <div className="flex justify-between items-center text-xs text-gray-500 mt-3">
-        <div className="flex -space-x-2">
-          {card.assignedTo?.map((userId, idx) => (
-            <span key={userId} className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow">
-              {userId[0]?.toUpperCase()}
+     
+      {task.tags && task.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {task.tags.map((tag) => (
+            <span key={tag} className="bg-zinc-200 text-black tracking-widest text-xs px-2 py-0.5 rounded-full">
+              #{tag}
             </span>
           ))}
         </div>
-        <span>{card.dueDate ? <ShortMonthDate date={card.dueDate} /> : ''}</span>
+      )}
+      
+      <div className="flex justify-between items-center text-xs ">
+        <span>{task.dueDate ? `Due: ${moment(task.dueDate).format('MMM D')}` : ''}</span>
+        <div onClick={handleAssigneeClick} className="flex -space-x-2 cursor-pointer">
+          {task.assignedTo?.slice(0, 5).map((userId) => (
+            <span
+              key={userId}
+              className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow"
+            >
+              {users.find(u => u._id === userId)?.personalDetails.firstName[0]?.toUpperCase() || 'U'}
+            </span>
+          ))}
+          {task.assignedTo && task.assignedTo.length > 5 && (
+            <span className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow">
+              +{task.assignedTo.length - 5}
+            </span>
+          )}
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-export default function KanbanBoard({ tasks, statuses, onDragEnd, onView, onEdit, onDelete, onStatusDelete }: KanbanBoardProps) {
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
+function DroppableColumn({ id, title, count, children }: { id: string; title: string; count: number; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className="flex flex-col flex-shrink-0 w-[450px] bg-zinc-100 rounded-xl max-h-[calc(100vh-20rem)]"
+    >
+      <div className="flex items-center justify-between p-4 sticky top-0 bg-[#235C7F] mb-4 backdrop-blur-sm rounded-t-xl ">
+        <h2 className="text-lg font-bold text-white">{title}</h2>
+        <span className="text-xs font-semibold text-[#235C7F] bg-white px-2.5 py-1 rounded-full">{count} </span>
+      </div>
+      <div className="flex flex-col gap-3 overflow-y-auto px-3 pb-3 hide-scrollbar">
+        <SortableContext items={React.Children.map(children, c => (c as React.ReactElement).key) as string[]} strategy={verticalListSortingStrategy}>
+          <AnimatePresence>
+            {children}
+          </AnimatePresence>
+        </SortableContext>
+      </div>
+    </div>
+  );
+}
 
-  // Group tasks by dynamic statuses
-  const columns = statuses.map(status => ({
-    ...status,
-    tasks: tasks.filter(t => t.status === status.name),
-  }));
+const KanbanBoard = ({ tasks, onStatusChange, users, onUpdateTask, onViewTask, onEditTask, onDeleteTask }: KanbanBoardProps) => {
+  const [localTasks, setLocalTasks] = useState(tasks);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  
+  const [showModal, setShowModal] = useState(false);
+  const [modalAssignees, setModalAssignees] = useState<User[]>([]);
+  const [currentTaskForModal, setCurrentTaskForModal] = useState<Task | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  useEffect(() => {
+    setLocalTasks(tasks);
+  }, [tasks]);
+
+  const groupedTasks = useMemo(() => {
+    return columnsOrder.reduce((acc, colId) => {
+      acc[colId] = localTasks.filter((t) => t.status === colId);
+      return acc;
+    }, {} as Record<string, Task[]>);
+  }, [localTasks]);
+
+  function handleDragStart(event: any) {
+    setActiveTask(event.active.data.current?.task);
+  }
+
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
+    setActiveTask(null);
+
+    if (over && active.id !== over.id) {
+      const newStatus = over.id;
+      onStatusChange(active.id, newStatus);
+    }
+  }
+
+  const handleShowAssignees = (task: Task) => {
+    const assignees = users.filter(u => task.assignedTo?.includes(u._id));
+    setModalAssignees(assignees);
+    setCurrentTaskForModal(task);
+    setShowModal(true);
+  };
+
+  const handleRemoveAssignee = async (userId: string) => {
+    if (!currentTaskForModal) return;
+    const updatedAssignedTo = currentTaskForModal.assignedTo?.filter(id => id !== userId) || [];
+    try {
+      await onUpdateTask({ id: currentTaskForModal._id, data: { assignedTo: updatedAssignedTo } });
+      setModalAssignees(prev => prev.filter(u => u._id !== userId));
+      setCurrentTaskForModal(prev => prev ? { ...prev, assignedTo: updatedAssignedTo } : null);
+    } catch (err) {
+      console.error("Failed to remove assignee:", err);
+    }
+  };
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={onDragEnd}
-      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-    >
-      <div className="flex gap-6 h-full overflow-x-auto p-6 bg-gradient-to-br from-[#e0e7ff] to-[#f4fafd] min-h-[60vh]">
-        {columns.map((col) => (
-          <div key={col._id} className="flex-shrink-0 w-80 glass bg-white/40 rounded-2xl p-4 border border-white/30 backdrop-blur-md shadow-xl transition-all duration-300 hover:shadow-2xl hover:bg-white/60">
-            <div className="flex items-center mb-4">
-              <h3 className="font-bold text-lg text-gray-800 flex-grow tracking-wide uppercase drop-shadow-sm letter-spacing-[0.05em]" style={{ color: col.color || undefined }}>{col.name}</h3>
-              {onStatusDelete && (
-                <button className="ml-2 text-red-500 hover:text-red-700" onClick={() => onStatusDelete(col._id)} title="Delete status">✕</button>
-              )}
-            </div>
-            <SortableContext items={col.tasks.map(t => t._id)} strategy={verticalListSortingStrategy}>
-              {col.tasks.map((task) => (
-                <SortableCard
-                  key={task._id}
-                  id={task._id}
-                  card={task}
-                  onView={() => onView(task)}
-                  onEdit={() => onEdit(task)}
-                  onDelete={() => onDelete(task)}
-                />
+    <>
+      <DndContext 
+        sensors={sensors} 
+        collisionDetection={closestCenter} 
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-5 p-2 -mx-2 overflow-x-auto">
+          {columnsOrder.map((statusId) => (
+            <DroppableColumn
+              id={statusId}
+              key={statusId}
+              title={statusTitles[statusId as keyof typeof statusTitles]}
+              count={groupedTasks[statusId]?.length || 0}
+            >
+              {groupedTasks[statusId]?.map((task) => (
+                 <motion.div
+                    key={task._id}
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                 >
+                    <KanbanCard
+                        key={task._id}
+                        task={task}
+                        onShowAssignees={handleShowAssignees}
+                        onViewDetails={onViewTask}
+                        onEditTask={onEditTask}
+                        onDeleteTask={onDeleteTask}
+                        users={users}
+                    />
+                </motion.div>
               ))}
-            </SortableContext>
-          </div>
-        ))}
-      </div>
-      {/* DragOverlay and modals can be added here in next steps */}
-    </DndContext>
+            </DroppableColumn>
+          ))}
+        </div>
+        <DragOverlay dropAnimation={null}>
+          {activeTask ? (
+            <KanbanCard 
+                task={activeTask} 
+                isOverlay={true}
+                onShowAssignees={() => {}} 
+                onViewDetails={() => {}}
+                onEditTask={() => {}}
+                onDeleteTask={() => {}}
+                users={users}
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+      <AssigneesModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        assignees={modalAssignees}
+        onRemoveAssignee={handleRemoveAssignee}
+      />
+    </>
   );
-}
+};
+
+export default KanbanBoard;

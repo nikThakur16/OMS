@@ -1,35 +1,21 @@
-import React, { useState } from "react";
+'use client';
+import React, { useState, useEffect } from "react";
+import { Formik, Form, Field } from "formik";
 import { useGetUsersQuery, useGetTeamsQuery, useGetDepartmentsQuery, useCreateDepartmentMutation, useCreateTeamMutation } from '@/store/api';
 import { User } from '@/types/users/user';
-import { Team } from '@/types/admin/team';
-import { Department } from '@/types/admin/department';
 import CreateDepartmentModal from '../department/CreateDepartmentModal';
 import CreateTeamModal from '../team/CreateTeamModal';
-import { Formik, Form, Field } from "formik";
 import dynamic from "next/dynamic";
 const Select = dynamic(() => import("react-select"), { ssr: false });
 
-interface CreateProjectModalProps {
+interface EditProjectModalProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (data: {
-    name: string;
-    description?: string;
-    startDate?: string;
-    endDate?: string;
-    status: string;
-    manager?: string;
-    team?: string[];
-    departments?: string[];
-    assignedTo: string[];
-    customFields: { name: string; type: string; options?: string[] }[];
-    customFieldValues: { [key: string]: any };
-    budget: number;
-    currency: string;
-  }) => void;
+  project: any; // Pass the full project object to edit
+  onUpdate: (data: any) => void;
 }
 
-export default function CreateProjectModal({ open, onClose, onCreate }: CreateProjectModalProps) {
+export default function EditProjectModal({ open, onClose, project, onUpdate }: EditProjectModalProps) {
   const { data: users } = useGetUsersQuery() as { data?: User[] };
   const { data: teams, refetch: refetchTeams } = useGetTeamsQuery();
   const { data: departments, refetch: refetchDepartments } = useGetDepartmentsQuery();
@@ -42,20 +28,26 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
   const [selectedDepartment, setSelectedDepartment] = useState<string>("");
   const [selectedTeam, setSelectedTeam] = useState<string>("");
 
-  const [customFields, setCustomFields] = useState<
-    { name: string; type: string; options?: string[] }[]
-  >([]);
+  // Custom fields and values
+  const [customFields, setCustomFields] = useState<{ name: string; type: string; options?: string[] }[]>([]);
   const [newField, setNewField] = useState({ name: "", type: "text", options: [] });
   const [customFieldValues, setCustomFieldValues] = useState<{ [key: string]: any }>({});
 
+  // Budget and currency
   const [budget, setBudget] = useState('');
-  const [currency, setCurrency] = useState('USD'); // Default currency
+  const [currency, setCurrency] = useState('USD');
+
+  // Pre-fill form on open
+  useEffect(() => {
+    if (open && project) {
+      setCustomFields(project.customFields || []);
+      setCustomFieldValues(project.customFieldValues || {});
+      setBudget(project.budget || '');
+      setCurrency(project.currency || 'USD');
+    }
+  }, [open, project]);
 
   if (!open) return null;
-
-  console.log("Teams:", teams); 
-  console.log("Users:", users);
-  console.log("Departments:", departments);
 
   return (
     <>
@@ -67,21 +59,22 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
           >
             &times;
           </button>
-          <h2 className="text-2xl font-bold mb-6">Create New Project</h2>
+          <h2 className="text-2xl font-bold mb-6">Edit Project</h2>
           <Formik
             initialValues={{
-              name: "",
-              description: "",
-              startDate: "",
-              endDate: "",
-              status: "active",
-              manager: "",
-              team: [] as string[],
-              departments: [] as string[],
-              assignedTo: [] as string[],
+              name: project.name || "",
+              description: project.description || "",
+              startDate: project.startDate ? project.startDate.slice(0, 10) : "",
+              endDate: project.endDate ? project.endDate.slice(0, 10) : "",
+              status: project.status || "active",
+              manager: project.manager?._id || "",
+              team: project.team?.map((t: any) => t._id) || [],
+              departments: project.departments?.map((d: any) => d._id) || [],
+              assignedTo: project.assignedTo || [],
               customFields: [],
               customFieldValues: {},
             }}
+            enableReinitialize
             onSubmit={(values, { resetForm }) => {
               const payload = { ...values } as any;
               if (!payload.manager) delete payload.manager;
@@ -89,7 +82,7 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
               payload.customFieldValues = customFieldValues;
               payload.budget = budget;
               payload.currency = currency;
-              onCreate(payload);
+              onUpdate(payload);
               resetForm();
             }}
           >
@@ -107,11 +100,6 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
                 }
                 return true;
               }) || [];
-
-              const userOptions = filteredUsers.map(user => ({
-                value: user._id,
-                label: `${user.personalDetails.firstName} ${user.personalDetails.lastName} (${user._id})`
-              }));
 
               return (
                 <Form className="space-y-4">
@@ -403,7 +391,7 @@ export default function CreateProjectModal({ open, onClose, onCreate }: CreatePr
                       type="submit"
                       className="flex-1 px-4 py-3 bg-[#175075] text-white rounded-lg font-semibold hover:bg-indigo-600 transition-colors"
                     >
-                      Create Project
+                      Update Project
                     </button>
                   </div>
                 </Form>

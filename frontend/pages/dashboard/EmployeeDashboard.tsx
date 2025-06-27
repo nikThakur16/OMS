@@ -50,7 +50,7 @@ type Announcement = {
 
 const EmployeeDashboard = () => {
   const loggedUser = useAppSelector((state) => state?.login?.user);
-  console.log("===========================================", loggedUser);
+ 
 
   // --- Mock User Data & Attendance State ---
   const [triggerUpdateAttendance, { isLoading: isUpdatingAttendance }] =

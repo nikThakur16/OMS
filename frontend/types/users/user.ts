@@ -65,6 +65,8 @@ export interface User {
   resetPasswordExpire?: Date;
   createdAt: Date;
   updatedAt: Date;
+  teams: string[]; // Array of team IDs the user belongs to
+  projects: string[]; // Array of project IDs the user is associated with
 }
 
 // Request types for API calls

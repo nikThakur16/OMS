@@ -1,19 +1,19 @@
 const express = require("express");
 const router = express.Router();
 const taskController = require("../controllers/taskController");
-const { protect, authorize } = require("../middleware/authMiddleware");
+const { protect, authorize, canModifyProjectContent } = require("../middleware/authMiddleware");
 
 // NOTE: Project-scoped task routes are now under projectRoutes.js
 
-// Only Admins can create tasks
+// Only Admins can create tasks (general, not project-scoped)
 router.post("/", protect, authorize("Admin"), taskController.createTask);
 
 // Anyone authenticated can view tasks
-router.get("/", protect, taskController.getTasks);
+
 router.get("/:id", protect, taskController.getTaskById);
 
-// Only Admins can update or delete tasks (optional, but recommended)
-router.put("/:id", protect, authorize("Admin"), taskController.updateTask);
-router.delete("/:id", protect, authorize("Admin"), taskController.deleteTask);
+// Allow assigned users/managers to update or delete tasks
+router.put("/:id", protect, canModifyProjectContent, taskController.updateTask);
+router.delete("/:id", protect, canModifyProjectContent, taskController.deleteTask);
 
 module.exports = router;

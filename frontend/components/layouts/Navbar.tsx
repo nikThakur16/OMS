@@ -21,7 +21,7 @@ const Navbar = () => {
   const router = useRouter();
   const [triggerLogout, { isLoading, error }] = useLogoutMutation();
 
-  console.log("Logged User:", loggedUser);
+ 
 
   useEffect(() => {
     setMounted(true);

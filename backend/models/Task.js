@@ -25,10 +25,7 @@ const ActivitySchema = new Schema({
 // ─── Main Task Schema ──────────────────────────────────────────────────────────
 const TaskSchema = new Schema(
   {
-    organizationId: { type: Types.ObjectId, ref: "Organization", required: true },
     project: { type: Types.ObjectId, ref: "Project", required: true },
-    teamId: { type: Types.ObjectId, ref: "Team" },
-    departmentId: { type: Types.ObjectId, ref: "Department" },
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true },
     tags: [{ type: String }],
@@ -47,12 +44,9 @@ const TaskSchema = new Schema(
     dueDateTz: String,
     locale: String,
     isRecurring: { type: Boolean, default: false },
-    recurrenceRule: String,
     estimatedHours: Number,
     actualHours: Number,
-    hourlyRate: Number,
-    budgetedCost: Number,
-    actualCost: Number,
+    
     status: { type: String, required: true },
     statusRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Status', required: false },
     statusColor: { type: String, required: false },

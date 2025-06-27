@@ -1,11 +1,12 @@
 const Project = require("../models/Project");
+const Task = require("../models/Task");
 
 // Create Project
 exports.createProject = async (req, res) => {
   try {
     // Always set organizationId from the authenticated user
     const orgId = req.user.organizationId;
-  const project = new Project({ ...req.body, organizationId: orgId });
+    const project = new Project({ ...req.body, organizationId: orgId });
     await project.save();
     res.status(201).json(project);
   } catch (err) {
@@ -16,9 +17,29 @@ exports.createProject = async (req, res) => {
 // Get All Projects (optionally filter by org, status, etc.)
 exports.getProjects = async (req, res) => {
   try {
-    const filter = { ...req.query };
-    // Populate manager's name
-    const projects = await Project.find(filter).populate('manager', 'personalDetails').populate('team' , 'name').populate('departments' , 'name');
+    const userId = req.user._id;
+    const userRole = req.user.personalDetails.role; // Assuming this is how you get the role
+
+    let filter = {};
+
+    // Only restrict for non-admin, non-manager, non-hr
+    if (!["Admin", "Manager", "HR"].includes(userRole)) {
+      filter = {
+        $or: [
+          { manager: userId },
+          { assignedTo: userId },
+          { creator: userId },      // Only if you have this field
+          { watchers: userId }      // Only if you have this field
+        ]
+      };
+    }
+
+    const projects = await Project.find(filter)
+      .populate('manager', 'personalDetails')
+      .populate('assignedTo', 'personalDetails')
+      .populate('team', 'name')
+      .populate('departments', 'name');
+
     res.json(projects);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -60,5 +81,17 @@ exports.deleteProject = async (req, res) => {
     res.json({ message: "Project soft-deleted", project });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.createTask = async (req, res) => {
+  try {
+    const { projectId } = req.params; // <-- get from URL
+    const taskData = req.body;
+    const task = new Task({ ...taskData, project: projectId }); // <-- set project
+    await task.save();
+    res.status(201).json(task);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };

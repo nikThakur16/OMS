@@ -13,6 +13,7 @@ import { Project, CreateProjectRequest } from "@/types/admin/project";
 import { Announcement } from "@/types/admin/announcement";
 import { Team } from '@/types/admin/team';
 import { Department } from '@/types/admin/department';
+import { update } from "lodash";
 
 // Optional: to support query string building
 interface GetEmployeeAttendanceParams {
@@ -160,9 +161,9 @@ export const api = createApi({
       providesTags: (result, error, id) => [{ type: "Tasks", id }],
     }),
 
-    createTask: builder.mutation<Task, Partial<Task>>({
-      query: (data) => ({
-        url: "api/tasks",
+    createTask: builder.mutation<Task, { data: Partial<Task>, projectId: string }>({
+      query: ({ data, projectId }) => ({
+        url: `api/projects/${projectId}/tasks`,
         method: "POST",
         body: data,
       }),
@@ -173,7 +174,10 @@ export const api = createApi({
       query: ({ id, data }) => ({
         url: `api/tasks/${id}`,
         method: "PUT",
-        body: data,
+        body: {
+          ...data,
+          _id: id,
+        },
       }),
       invalidatesTags: ["Tasks"],
     }),
@@ -248,7 +252,7 @@ export const api = createApi({
     // PROJECT-SCOPED TASKS
     getTasksByProject: builder.query<Task[], string>({
       query: (project) => `api/projects/${project}/tasks`,
-      providesTags: ["Tasks"],
+      providesTags: (result, error, project) => [{ type: "Tasks", id: project }],
     }),
     createTaskForProject: builder.mutation<Task, { project: string; data: Partial<Task> }>({
       query: ({ project, data }) => ({
@@ -256,7 +260,7 @@ export const api = createApi({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["Tasks"],
+      invalidatesTags: (result, error, { project }) => [{ type: "Tasks", id: project }],
     }),
 
     // STATUSES

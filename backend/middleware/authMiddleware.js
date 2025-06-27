@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User'); // Assuming User model is needed for some checks
+const Project = require('../models/Project'); // <-- ADD THIS
+const Task = require('../models/Task');       // <-- ADD THIS
 
 const jwtSecret = process.env.JWT_SECRET || "your_jwt_secret_key"; // Use the same secret as in authController.js
 
@@ -34,6 +36,50 @@ exports.protect = async (req, res, next) => {
     } catch (error) {
         console.error("Token verification failed:", error);
         res.status(401).json({ message: 'Not authorized, token failed' });
+    }
+};
+
+exports.canModifyProjectContent = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const userRole = req.user.personalDetails.role;
+
+        if (['Admin', 'HR'].includes(userRole)) {
+            return next();
+        }
+
+        let projectId;
+
+        if (req.params.projectId) {
+            projectId = req.params.projectId;
+        } else if (req.params.id) {
+            const task = await Task.findById(req.params.id);
+            if (task) {
+                projectId = task.project;
+            }
+        }
+
+        if (!projectId) {
+            return res.status(400).json({ message: 'Project context could not be determined for authorization.' });
+        }
+
+        const project = await Project.findById(projectId);
+        if (!project) {
+            return res.status(404).json({ message: 'Associated project not found.' });
+        }
+
+        const isManager = project.manager && project.manager.toString() === userId.toString();
+        const isAssigned = project.assignedTo.map(id => id.toString()).includes(userId.toString());
+
+        if (isManager || isAssigned) {
+            return next();
+        }
+
+        return res.status(403).json({ message: 'Access denied. You are not authorized to modify content for this project.' });
+
+    } catch (error) {
+        console.error("Authorization error in canModifyProjectContent:", error);
+        res.status(500).json({ message: 'Server error during authorization.' });
     }
 };
 

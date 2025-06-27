@@ -1,6 +1,6 @@
 // backend/controllers/userController.js
 const User = require('../models/User'); // Assuming you have a User model
-
+const Attendance = require('../models/Attendance'); // <-- ADD THIS LINE
 const mongoose = require('mongoose'); // Ensure mongoose is imported for isValidObjectId
 
 // @desc    Get a single user by ID with attendance details
@@ -21,10 +21,13 @@ exports.getUserById = async (req, res) => {
 
         // Fetch attendance records for this user
         // Assuming employeeId in Attendance model matches the _id of the User
-       
+        const attendance = await Attendance.find({ userId: id });
 
         // Combine user details and attendance records
-     
+        const userDetailsWithAttendance = {
+            ...user.toObject(),
+            attendance: attendance,
+        };
 
         res.status(200).json(userDetailsWithAttendance);
     } catch (error) {

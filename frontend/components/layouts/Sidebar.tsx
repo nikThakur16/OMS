@@ -75,9 +75,9 @@ const Sidebar = () => {
   if (!mounted) return null;
 
   return (
-    <div className={`flex flex-col bg-[#034F75] ${collapsed ? 'w-[70px]' : 'w-[17%]'} max-h-[100vh] rounded-[22px] pl-[10px] px-2 py-6 transition-all duration-300`}>
+    <div className={`flex flex-col bg-[#034F75] ${collapsed ? 'w-[70px]' : 'w-[17%]'} h-[100vh] rounded-[22px] pl-[10px] px-2 py-6 transition-all duration-300`}>
       <div className='flex items-center justify-between mb-4'>
-        <img className={`h-14 ${collapsed ? 'w-10' : 'w-[70%]'}`} src="https://softradix.com/wp-content/uploads/2022/07/main-logo.png" alt="" />
+        <img className={`h-14 ${collapsed ? 'hidden' : 'w-[70%]'}`} src="https://softradix.com/wp-content/uploads/2022/07/main-logo.png" alt="" />
         <button
           className='text-white bg-white/10 hover:bg-white/20 rounded-full p-2 ml-2 transition'
           onClick={() => setCollapsed((prev) => !prev)}
@@ -92,7 +92,7 @@ const Sidebar = () => {
             return (
               <div key={index}>
                 <div
-                  className={`flex gap-2 items-center mb-2 ${isActive(`/${role.toLowerCase()}/projects`) && !pathname?.includes('/projects/') ? 'bg-white/20 rounded-lg px-2 py-1' : ''}`}
+                  className={`flex gap-6 items-center mb-2 ${isActive(`/${role.toLowerCase()}/projects`) && !pathname?.includes('/projects/') ? 'bg-white/20 rounded-lg px-2 py-1' : ''}`}
                 >
                   {iconMap[item.icon]}
                   {!collapsed && (
@@ -107,13 +107,16 @@ const Sidebar = () => {
                     </h4>
                   )}
                   <span
-                    className={`ml-auto text-lg transition-transform ${showProjects ? '' : '-rotate-90'} cursor-pointer`}
+                    className={`ml-auto text-lg transition-transform  cursor-pointer`}
                     onClick={e => {
                       e.stopPropagation();
                       setShowProjects((prev) => !prev);
                     }}
                   >
-                    {showProjects ? <HiChevronDown /> : <HiChevronRight />}
+                    {showProjects ? 
+                        <img style={{ filter: 'brightness(0) invert(1)' }} width="24" height="24" src="https://img.icons8.com/material-outlined/24/drag-list-down.png" alt="drag-list-down"/> : 
+                        <img style={{ filter: 'brightness(0) invert(1)' }} width="24" height="24" src="https://img.icons8.com/material/24/drag-list-up--v1.png" alt="drag-list-up--v1"/>
+                    }
                   </span>
                 </div>
                 {/* Sub-navigation for projects */}
@@ -123,7 +126,7 @@ const Sidebar = () => {
                       proj && proj._id && proj.name ? (
                         <div
                           key={proj._id}
-                          className={`flex items-center gap-2 cursor-pointer px-2 py-1 rounded-lg transition ${isProjectActive(proj._id) ? 'bg-white/30 text-white font-bold' : 'hover:bg-white/10 text-white/90'}`}
+                          className={`flex items-center  gap-2 cursor-pointer px-2 py-1 rounded-lg transition ${isProjectActive(proj._id) ? 'bg-white/30 text-white font-bold' : 'hover:bg-white/10 text-white/90'}`}
                           onClick={() => router.push(`/${role.toLowerCase()}/projects/${proj._id}`)}
                         >
                           <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${getColor(i)}`}>{proj.name[0]}</span>

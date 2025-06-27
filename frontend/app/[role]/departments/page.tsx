@@ -2,12 +2,16 @@
 import React, { useState } from "react";
 import { useGetDepartmentsQuery, useCreateDepartmentMutation, useGetUsersQuery, useGetTeamsQuery } from '@/store/api';
 import CreateDepartmentModal from '@/components/modals/department/CreateDepartmentModal';
+import { useAppSelector } from "@/store/hooks";
 
 export default function DepartmentsPage() {
   const { data: departments, refetch } = useGetDepartmentsQuery();
   const [createDepartment] = useCreateDepartmentMutation();
   const { data: users } = useGetUsersQuery();
   const { data: teams } = useGetTeamsQuery();
+  const loggedUser = useAppSelector((state) => state?.login?.user);
+ 
+
   const [showModal, setShowModal] = useState(false);
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
 
@@ -28,15 +32,16 @@ export default function DepartmentsPage() {
   };
 
   return (
-    <div className="p-6 bg-gradient-to-br from-[#e0e7ff] to-[#f4fafd] min-h-screen">
+    <div className="p-6 bg-white min-h-screen">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Departments</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300"
-        >
-          + Create Department
-        </button>
+       {loggedUser && loggedUser?.role!=="Employee" ? (
+         <button
+         onClick={() => setShowModal(true)}
+         className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300"
+       >
+         + Create Department
+       </button>):""}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {departments && departments.map((dept) => (

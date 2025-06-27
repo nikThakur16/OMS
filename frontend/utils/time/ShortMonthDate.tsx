@@ -21,17 +21,17 @@ export default function ShortMonthDate({
   if (!date) return <span className={className}>{fallback}</span>;
 
   try {
-    // Normalize to a Date instance
-    const parsed = typeof date === "string" ? new Date(date) : date;
-    
-    return (
+  // Normalize to a Date instance
+  const parsed = typeof date === "string" ? new Date(date) : date;
+
+  return (
       <time 
         dateTime={parsed.toISOString()} 
         className={className}
       >
-        {format(parsed, "dd MMM yyyy")}
-      </time>
-    );
+      {format(parsed, "dd MMM yyyy")}
+    </time>
+  );
   } catch (error) {
     // Handle invalid dates gracefully
     return <span className={className}>{fallback}</span>;
