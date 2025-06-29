@@ -7,6 +7,7 @@
     "date-fns": "^4.1.0",
     "jose": "^6.0.11",
     "nodemailer": "^7.0.3",
+    "react-hot-toast": "^2.5.2",
     "recharts": "^2.15.3",
     "socket.io-client": "^4.8.1"
   }

@@ -14,6 +14,7 @@ const projectRoutes = require("./routes/projectRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const departmentRoutes = require("./routes/departmentRoutes");
 const statusRoutes = require('./routes/statusRoutes');
+const leaveRoutes = require("./routes/leaveRoutes");
 
 app.use(cookieParser());
 
@@ -22,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 // Configure CORS to allow requests from your frontend origin
 const corsOptions = {
   origin: "http://localhost:3000", // **Allow requests ONLY from your frontend development server**
-  methods: "GET,POST,PUT,DELETE", // Allowed HTTP methods
+  methods: "GET,POST,PUT,DELETE,PATCH", // Added PATCH
   credentials: true, // Allow cookies/authentication headers to be sent
   optionsSuccessStatus: 204, // Some legacy browsers (IE11, various SmartTVs) choke on 204
 };
@@ -41,6 +42,8 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use('/api/statuses', statusRoutes);
+app.use("/api/leaves", leaveRoutes);
+app.use('/api/leave-quotas', require('./routes/leaveRoutes'));
 
 // Connect to MongoDB
 mongoose

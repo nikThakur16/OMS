@@ -25,7 +25,7 @@ interface GetEmployeeAttendanceParams {
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL,
+    baseUrl: process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL || "http://localhost:5000",
     credentials: "include",
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as any)?.login?.token;
@@ -35,7 +35,7 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ["Users", "Attendance", "Announcements", "Tasks", "Projects", "Teams", "Departments"],
+  tagTypes: ["Users", "Attendance", "Announcements", "Tasks", "Projects", "Teams", "Departments", "Leaves"],
 
   endpoints: (builder) => ({
     // USERS
@@ -291,6 +291,198 @@ export const api = createApi({
       }),
       invalidatesTags: ['Tasks'],
     }),
+
+    // LEAVES
+    getLeaveBalance: builder.query<any, void>({
+      query: () => "/api/leaves/balance",
+      providesTags: ["Leaves"],
+    }),
+    getLeaveHistory: builder.query<any, void>({
+      query: () => "/api/leaves/history",
+      providesTags: ["Leaves"],
+    }),
+    applyForLeave: builder.mutation<any, {
+      leaveTypeId: string;
+      startDate: string;
+      endDate: string;
+      reason?: string;
+      isHalfDay?: boolean;
+    }>({
+      query: (data) => ({
+        url: "/api/leaves/apply",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Leaves"],
+    }),
+    cancelLeave: builder.mutation<any, string>({
+      query: (id) => ({
+        url: `/api/leaves/cancel/${id}`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: ["Leaves"],
+    }),
+    approveLeave: builder.mutation<any, { id: string; comment?: string }>({
+      query: ({ id, comment }) => ({
+        url: `/api/leaves/approve/${id}`,
+        method: 'PATCH',
+        body: comment ? { comment } : undefined,
+      }),
+      invalidatesTags: ["Leaves"],
+    }),
+    rejectLeave: builder.mutation<any, { id: string; comment?: string }>({
+      query: ({ id, comment }) => ({
+        url: `/api/leaves/reject/${id}`,
+        method: 'PATCH',
+        body: comment ? { comment } : undefined,
+      }),
+      invalidatesTags: ["Leaves"],
+    }),
+    adminCancelLeave: builder.mutation<any, { id: string; comment?: string }>({
+      query: ({ id, comment }) => ({
+        url: `/api/leaves/admin-cancel/${id}`,
+        method: 'PATCH',
+        body: comment ? { comment } : undefined,
+      }),
+      invalidatesTags: ["Leaves"],
+    }),
+    getLeaveReport: builder.query<any, void>({
+      query: () => "/api/leaves/report",
+      providesTags: ["Leaves"],
+    }),
+    getAllLeaveRequests: builder.query<any, any>({
+      query: (filters) => {
+        // Filter out empty values
+        const cleanFilters = filters ? Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== '' && value !== null && value !== undefined)
+        ) : {};
+        const search = new URLSearchParams(cleanFilters).toString();
+        return `/api/leaves/requests${search ? `?${search}` : ''}`;
+      },
+      providesTags: ["Leaves"],
+    }),
+    getTeamLeaveRequests: builder.query<any, any>({
+      query: (filters) => {
+        // Filter out empty values
+        const cleanFilters = filters ? Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== '' && value !== null && value !== undefined)
+        ) : {};
+        const search = new URLSearchParams(cleanFilters).toString();
+        return `/api/leaves/team${search ? `?${search}` : ''}`;
+      },
+      providesTags: ["Leaves"],
+    }),
+    getLeaveTypes: builder.query<any, void>({
+      query: () => "/api/leaves/types",
+      providesTags: ["Leaves"],
+    }),
+    // LEAVE TYPES
+    createLeaveType: builder.mutation<any, { name: string; description?: string; defaultDays?: number }>({
+      query: (data) => ({
+        url: '/api/leaves/types',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Leaves'],
+    }),
+    updateLeaveType: builder.mutation<any, { id: string; name: string; description?: string; defaultDays?: number }>({
+      query: ({ id, ...data }) => ({
+        url: `/api/leaves/types/${id}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: ['Leaves'],
+    }),
+    deleteLeaveType: builder.mutation<any, string>({
+      query: (id) => ({
+        url: `/api/leaves/types/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Leaves'],
+    }),
+    // LEAVE QUOTAS
+    updateLeaveQuota: builder.mutation<any, { id: string; total: number; used: number }>({
+      query: ({ id, ...data }) => ({
+        url: `/api/leaves/quotas/${id}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: ['Leaves'],
+    }),
+    getLeaveQuotas: builder.query<any, any>({
+      query: (params) => {
+        // Filter out empty values
+        const cleanParams = params ? Object.fromEntries(
+          Object.entries(params).filter(([_, value]) => value !== '' && value !== null && value !== undefined)
+        ) : {};
+        const search = Object.keys(cleanParams).length > 0 ? `?${new URLSearchParams(cleanParams).toString()}` : '';
+        return `/api/leaves/quotas${search}`;
+      },
+      providesTags: ['Leaves'],
+    }),
+    createLeaveQuota: builder.mutation<any, { user: string; leaveType: string; year: number; allocated: number; carriedOver?: number }>({
+      query: (data) => ({
+        url: '/api/leaves/quotas',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Leaves'],
+    }),
+
+    // USER ROLE MANAGEMENT
+    updateUserRole: builder.mutation<any, { userId: string; role: string }>({
+      query: ({ userId, role }) => ({
+        url: `/api/users/${userId}/role`,
+        method: 'PUT',
+        body: { role },
+      }),
+      invalidatesTags: ['Users'],
+    }),
+
+    searchUsers: builder.query<User[], string>({
+      query: (q) => `/api/users/search?q=${encodeURIComponent(q)}`,
+      providesTags: ["Users"],
+    }),
+
+    // LEAVE QUOTA MATRIX
+    getLeaveQuotaMatrix: builder.query<any, { year: number; department?: string; role?: string; status?: string; leaveType?: string; search?: string }>({
+      query: (params) => {
+        const cleanParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== '' && v !== null && v !== undefined));
+        const search = Object.keys(cleanParams).length > 0 ? `?${new URLSearchParams(cleanParams as any).toString()}` : '';
+        return `/api/leaves/quotas/matrix${search}`;
+      },
+      providesTags: ['Leaves'],
+    }),
+    // BULK IMPORT LEAVE QUOTAS
+    bulkImportLeaveQuotas: builder.mutation<any, FormData>({
+      query: (formData) => ({
+        url: '/api/leaves/quotas/import',
+        method: 'POST',
+        body: formData,
+      }),
+      invalidatesTags: ['Leaves'],
+    }),
+    // AUDIT LOGS
+    getAuditLogs: builder.query<any, any>({
+      query: (params) => {
+        const search = params ? `?${new URLSearchParams(params).toString()}` : '';
+        return `/api/leaves/audit-logs${search}`;
+      },
+      providesTags: ['Leaves'],
+    }),
+    rollbackAuditLog: builder.mutation<any, string>({
+      query: (id) => ({
+        url: `/api/leaves/audit-logs/${id}/rollback`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Leaves'],
+    }),
+    syncLeaveQuotas: builder.mutation<any, { year?: number }>({
+      query: ({ year }) => ({
+        url: '/api/leave-quotas/quotas/sync',
+        method: 'POST',
+      }),
+    }),
   }),
 });
 
@@ -326,4 +518,28 @@ export const {
   useCreateStatusMutation,
   useUpdateStatusMutation,
   useDeleteStatusMutation,
+  useGetLeaveBalanceQuery,
+  useGetLeaveHistoryQuery,
+  useApplyForLeaveMutation,
+  useCancelLeaveMutation,
+  useApproveLeaveMutation,
+  useRejectLeaveMutation,
+  useAdminCancelLeaveMutation,
+  useGetLeaveReportQuery,
+  useGetAllLeaveRequestsQuery,
+  useGetLeaveTypesQuery,
+  useCreateLeaveTypeMutation,
+  useUpdateLeaveTypeMutation,
+  useDeleteLeaveTypeMutation,
+  useUpdateLeaveQuotaMutation,
+  useGetLeaveQuotasQuery,
+  useCreateLeaveQuotaMutation,
+  useGetTeamLeaveRequestsQuery,
+  useUpdateUserRoleMutation,
+  useSearchUsersQuery,
+  useGetLeaveQuotaMatrixQuery,
+  useBulkImportLeaveQuotasMutation,
+  useGetAuditLogsQuery,
+  useRollbackAuditLogMutation,
+  useSyncLeaveQuotasMutation,
 } = api;

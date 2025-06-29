@@ -38,6 +38,11 @@ const iconMap: Record<string, React.ReactNode> = {
   projects: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/task.png" alt="projects" />,
   teams: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/conference-call.png" alt="teams" />,
   employeesManagement: <img width="30" height="30" src="https://img.icons8.com/sf-regular-filled/48/FFFFFF/add-user-male--v2.png" alt="employeesManagement" />,
+  calendar: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/calendar--v1.png" alt="calendar" />,
+  barChart: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/combo-chart--v1.png" alt="bar chart" />,
+  settings: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/settings--v1.png" alt="settings" />,
+  pieChart: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/pie-chart--v1.png" alt="pie chart" />,
+  history: <img width="30" height="30" src="https://img.icons8.com/ios-filled/50/FFFFFF/time-machine.png" alt="history" />,
 };
 
 const Sidebar = () => {
@@ -93,6 +98,7 @@ const Sidebar = () => {
               <div key={index}>
                 <div
                   className={`flex gap-2 items-center mb-2 ${isActive(`/${role.toLowerCase()}/projects`) && !pathname?.includes('/projects/') ? 'bg-white/20 rounded-lg px-2 py-1' : ''}`}
+                  title={item.title}
                 >
                   {iconMap[item.icon]}
                   {!collapsed && (
@@ -102,6 +108,7 @@ const Sidebar = () => {
                         e.stopPropagation();
                         router.push(`/${role.toLowerCase()}/projects`);
                       }}
+                      title={item.title}
                     >
                       {item.title}
                     </h4>
@@ -112,6 +119,7 @@ const Sidebar = () => {
                       e.stopPropagation();
                       setShowProjects((prev) => !prev);
                     }}
+                    title={showProjects ? 'Hide Projects' : 'Show Projects'}
                   >
                     {showProjects ? <HiChevronDown /> : <HiChevronRight />}
                   </span>
@@ -125,6 +133,7 @@ const Sidebar = () => {
                           key={proj._id}
                           className={`flex items-center gap-2 cursor-pointer px-2 py-1 rounded-lg transition ${isProjectActive(proj._id) ? 'bg-white/30 text-white font-bold' : 'hover:bg-white/10 text-white/90'}`}
                           onClick={() => router.push(`/${role.toLowerCase()}/projects/${proj._id}`)}
+                          title={proj.name}
                         >
                           <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${getColor(i)}`}>{proj.name[0]}</span>
                           <span>{proj.name}</span>
@@ -145,6 +154,7 @@ const Sidebar = () => {
                   router.push(item.path);
                 }
               }}
+              title={item.title}
             >
               {iconMap[item.icon]}
               {!collapsed && <h4 className='font-semibold'>{item.title}</h4>}

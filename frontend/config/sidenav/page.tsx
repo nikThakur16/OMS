@@ -1,5 +1,3 @@
-import path from "path";
-
 export const Admin = [
   {
     title: "Dashboard",
@@ -46,9 +44,31 @@ export const Admin = [
     icon: "employeesManagement",
     path: "/admin/register",
   },
+  {
+    title: "Leave Management",
+    icon: "calendar",
+    tooltip: "View and manage all leave requests",
+    path: "/admin/leaves/management",
+  },
+  {
+    title: "Leave Reports",
+    icon: "barChart",
+    tooltip: "Leave statistics and reports",
+    path: "/admin/leaves/report",
+  },
+  {
+    title: "Leave Types & Quotas",
+    icon: "settings",
+    tooltip: "Manage leave types and quotas",
+    path: "/admin/leaves/types-quotas",
+  },
+  {
+    title: "Admin Tools",
+    icon: "admin",
+    tooltip: "Manage user roles and system settings",
+    path: "/admin/admin-tools",
+  },
 ];
-
-
 
 export const Employee = [
   {
@@ -87,8 +107,25 @@ export const Employee = [
     icon: "teams",
     path: "/employee/teams",
   },
+  {
+    title: "Apply for Leave",
+    icon: "calendar",
+    tooltip: "Submit a new leave request",
+    path: "/employee/leaves/apply",
+  },
+  {
+    title: "Leave Balance",
+    icon: "pieChart",
+    tooltip: "View your leave balance",
+    path: "/employee/leaves/balance",
+  },
+  {
+    title: "Leave History",
+    icon: "history",
+    tooltip: "See your leave request history",
+    path: "/employee/leaves/history",
+  },
 ];
-
 
 export const Hr = [
   {
@@ -132,6 +169,81 @@ export const Hr = [
     title: "Employees Management",
     icon: "employeesManagement",
     path: "/hr/register",
+  },
+  {
+    title: "Leave Management",
+    icon: "calendar",
+    tooltip: "View and manage all leave requests",
+    path: "/hr/leaves/management",
+  },
+  {
+    title: "Leave Reports",
+    icon: "barChart",
+    tooltip: "Leave statistics and reports",
+    path: "/hr/leaves/report",
+  },
+  {
+    title: "Leave Types & Quotas",
+    icon: "settings",
+    tooltip: "Manage leave types and quotas",
+    path: "/hr/leaves/types-quotas",
+  },
+];
+
+export const Manager = [
+  {
+    title: "Dashboard",
+    icon: "dashboard",
+    path: "/manager/dashboard",
+  },
+  {
+    title: "Employees",
+    icon: "employees",
+    path: "/manager/employees",
+  },
+  {
+    title: "Attendance",
+    icon: "attendance",
+    path: "/manager/attendance",
+  },
+  {
+    title: "Departments",
+    icon: "departments",
+    path: "/manager/departments",
+  },
+  {
+    title: "Projects",
+    icon: "projects",
+    path: "/manager/projects",
+  },
+  {
+    title: "Teams",
+    icon: "teams",
+    path: "/manager/teams",
+  },
+  {
+    title: "Team Leaves",
+    icon: "calendar",
+    tooltip: "View and manage team leave requests",
+    path: "/manager/leaves/management",
+  },
+  {
+    title: "Apply for Leave",
+    icon: "calendar",
+    tooltip: "Submit a new leave request",
+    path: "/manager/leaves/apply",
+  },
+  {
+    title: "Leave Balance",
+    icon: "pieChart",
+    tooltip: "View your leave balance",
+    path: "/manager/leaves/balance",
+  },
+  {
+    title: "Leave History",
+    icon: "history",
+    tooltip: "See your leave request history",
+    path: "/manager/leaves/history",
   },
 ];
 
