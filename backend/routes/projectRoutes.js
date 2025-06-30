@@ -23,4 +23,18 @@ router.post("/:projectId/tasks", protect, authorize("Admin"), taskController.cre
 // Get all tasks for a project
 router.get("/:projectId/tasks", protect, taskController.getTasksByProject);
 
+// Assign members to a project
+router.put('/:id/assign', protect, canModifyProjectContent, projectController.assignMembers);
+
+// Get task assignees for a project
+router.get('/:projectId/task-assignees', protect, authorize(['Admin', 'Employee']), projectController.getTaskAssigneesForProject);
+
+// NEW ROUTE FOR GETTING ASSIGNABLE USERS
+router.get(
+  '/:projectId/assignable-users',
+  protect, // Ensures user is logged in
+  authorize(['Admin', 'Employee', 'Manager', 'HR']), // Ensures user has a valid role
+  projectController.getAssignableUsersForProject
+);
+
 module.exports = router;

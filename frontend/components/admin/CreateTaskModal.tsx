@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import {
   useCreateTaskMutation,
-  useGetUsersQuery,
   useGetProjectByIdQuery,
 } from "@/store/api";
 import { useParams } from "next/navigation";
@@ -23,13 +22,15 @@ const initialTaskState = {
   customFields: {}, // Add customFields to the initial state
 };
 
-export default function CreateTaskModal({ isOpen, onClose, onSubmit }) {
+export default function CreateTaskModal({ isOpen, onClose, onSubmit, assignableUsers }) {
   const [taskData, setTaskData] = useState(initialTaskState);
   const [userSearch, setUserSearch] = useState("");
-  const { data: users = [] } = useGetUsersQuery();
+  const users = assignableUsers || [];
   const [createTask] = useCreateTaskMutation();
   const params = useParams();
   const projectId = params?.projectId as string;
+
+  console.log("==========", users)
 
   const { data: project } = useGetProjectByIdQuery(projectId, {
     skip: !projectId,
@@ -164,7 +165,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSubmit }) {
                             }
                             className="w-full border rounded p-2"
                           />
-                        )}
+                        )}e
                         {field.type === "date" && (
                           <input
                             type="date"

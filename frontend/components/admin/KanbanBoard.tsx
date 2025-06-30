@@ -45,17 +45,17 @@ interface Task {
   priority: 'critical' | 'high' | 'medium' | 'low';
   dueDate: string;
   tags?: string[];
-  assignedTo?: string[];
+  assignedTo?: User[]; // This can hold populated user objects
 }
 
 interface KanbanBoardProps {
   tasks: Task[];
   onStatusChange: (taskId: string, newStatus: string) => void;
-  users: User[];
-  onUpdateTask: (update: { id: string; data: Partial<Task> }) => Promise<any>;
+  onUpdateTask: (update: { id: string; data: Partial<Task> | { assignedTo: string[] } }) => Promise<any>;
   onViewTask: (task: Task) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
+  assignees: User[];
 }
 
 const priorityClasses = {
@@ -77,13 +77,12 @@ const priorityClasses = {
   },
 };
 
-function KanbanCard({ task, onShowAssignees, onViewDetails, onEditTask, onDeleteTask, users, isOverlay = false }: {
+function KanbanCard({ task, onShowAssignees, onViewDetails, onEditTask, onDeleteTask, isOverlay = false }: {
     task: Task;
     onShowAssignees: (task: Task) => void;
     onViewDetails: (task: Task) => void;
     onEditTask: (task: Task) => void;
     onDeleteTask: (task: Task) => void;
-    users: User[];
     isOverlay?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -97,16 +96,10 @@ function KanbanCard({ task, onShowAssignees, onViewDetails, onEditTask, onDelete
   };
   
   const priorityConfig = priorityClasses[task.priority] || priorityClasses.medium;
-  const assignedCount = task.assignedTo?.length || 0;
 
   const handleAssigneeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onShowAssignees(task);
-  };
-  
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onEditTask(task);
   };
   
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -137,8 +130,6 @@ function KanbanCard({ task, onShowAssignees, onViewDetails, onEditTask, onDelete
   const onClose=()=>{
     setShowMenu(false);
     setShowConfirm(false);
-
-
   }
   const menuRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -169,43 +160,15 @@ function KanbanCard({ task, onShowAssignees, onViewDetails, onEditTask, onDelete
           </div>
         )}
         {showConfirm && (
-          // <div
-          //   ref={modalRef}
-          //   className="absolute right-0 mt-2 w-48 bg-white border rounded shadow z-50"
-          // >
-          //   <div className="px-4 py-2 text-gray-700">Are you sure you want to delete?</div>
-          //   <div className="flex justify-end gap-2 px-4 pb-2">
-          //     <button
-          //       className="px-2 py-1 text-gray-500 hover:text-gray-700"
-          //       onClick={e => {
-          //         e.stopPropagation();
-          //         setShowConfirm(false);
-          //       }}
-          //     >
-          //       Cancel
-          //     </button>
-          //     <button
-          //       className="px-2 py-1 text-red-600 hover:bg-red-100 rounded"
-          //       onClick={e => {
-          //         e.stopPropagation();
-          //         handleConfirmDelete(e);
-          //       }}
-          //     >
-          //       Delete
-          //     </button>
-          //   </div>
-          // </div>
-<div className='absolute right-0 mt-2 w-48 bg-black-900/40 border rounded shadow z-50'>
-
-<DeleteConfirm
-          handleDelete={handleConfirmDelete}
-          onClose={onClose}
-          Data={task}
-          open={showConfirm}
-       
-          modalRef={modalRef}
-        />
-</div>
+          <div className='absolute right-0 mt-2 w-48 bg-black-900/40 border rounded shadow z-50'>
+            <DeleteConfirm
+              handleDelete={handleConfirmDelete}
+              onClose={onClose}
+              Data={task}
+              open={showConfirm}
+              modalRef={modalRef}
+            />
+          </div>
         )}
       </div>
       <div className="flex justify-between items-start ">
@@ -228,14 +191,21 @@ function KanbanCard({ task, onShowAssignees, onViewDetails, onEditTask, onDelete
       <div className="flex justify-between items-center text-xs ">
         <span>{task.dueDate ? `Due: ${moment(task.dueDate).format('MMM D')}` : ''}</span>
         <div onClick={handleAssigneeClick} className="flex -space-x-2 cursor-pointer">
-          {task.assignedTo?.slice(0, 5).map((userId) => (
-            <span
-              key={userId}
-              className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow"
-            >
-              {users.find(u => u._id === userId)?.personalDetails.firstName[0]?.toUpperCase() || 'U'}
-            </span>
-          ))}
+          {task.assignedTo?.slice(0, 5).map((user) => {
+            if (!user?.personalDetails?.firstName) {
+              return (
+                <span key={user?._id || Math.random()} className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white" />
+              );
+            }
+            return (
+              <span
+                key={user._id}
+                className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow"
+              >
+                {user.personalDetails.firstName[0]?.toUpperCase() || 'U'}
+              </span>
+            );
+          })}
           {task.assignedTo && task.assignedTo.length > 5 && (
             <span className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow">
               +{task.assignedTo.length - 5}
@@ -269,13 +239,14 @@ function DroppableColumn({ id, title, count, children }: { id: string; title: st
   );
 }
 
-const KanbanBoard = ({ tasks, onStatusChange, users, onUpdateTask, onViewTask, onEditTask, onDeleteTask }: KanbanBoardProps) => {
+const KanbanBoard = ({ tasks, onStatusChange, onUpdateTask, onViewTask, onEditTask, onDeleteTask,assignees }: KanbanBoardProps) => {
   const [localTasks, setLocalTasks] = useState(tasks);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   
   const [showModal, setShowModal] = useState(false);
   const [modalAssignees, setModalAssignees] = useState<User[]>([]);
   const [currentTaskForModal, setCurrentTaskForModal] = useState<Task | null>(null);
+  
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -311,19 +282,26 @@ const KanbanBoard = ({ tasks, onStatusChange, users, onUpdateTask, onViewTask, o
   }
 
   const handleShowAssignees = (task: Task) => {
-    const assignees = users.filter(u => task.assignedTo?.includes(u._id));
-    setModalAssignees(assignees);
+    setModalAssignees(task.assignedTo || []);
     setCurrentTaskForModal(task);
     setShowModal(true);
   };
 
   const handleRemoveAssignee = async (userId: string) => {
-    if (!currentTaskForModal) return;
-    const updatedAssignedTo = currentTaskForModal.assignedTo?.filter(id => id !== userId) || [];
+    if (!currentTaskForModal?.assignedTo) return;
+  
+    const updatedAssignees = currentTaskForModal.assignedTo.filter(user => user._id !== userId);
+    
+    const updatedAssigneeIds = updatedAssignees.map(user => user._id);
+    
     try {
-      await onUpdateTask({ id: currentTaskForModal._id, data: { assignedTo: updatedAssignedTo } });
-      setModalAssignees(prev => prev.filter(u => u._id !== userId));
-      setCurrentTaskForModal(prev => prev ? { ...prev, assignedTo: updatedAssignedTo } : null);
+      await onUpdateTask({ 
+        id: currentTaskForModal._id, 
+        data: { assignedTo: updatedAssigneeIds } 
+      });
+  
+      setModalAssignees(updatedAssignees);
+      setCurrentTaskForModal(prev => prev ? { ...prev, assignedTo: updatedAssignees } : null);
     } catch (err) {
       console.error("Failed to remove assignee:", err);
     }
@@ -360,7 +338,6 @@ const KanbanBoard = ({ tasks, onStatusChange, users, onUpdateTask, onViewTask, o
                         onViewDetails={onViewTask}
                         onEditTask={onEditTask}
                         onDeleteTask={onDeleteTask}
-                        users={users}
                     />
                 </motion.div>
               ))}
@@ -376,7 +353,6 @@ const KanbanBoard = ({ tasks, onStatusChange, users, onUpdateTask, onViewTask, o
                 onViewDetails={() => {}}
                 onEditTask={() => {}}
                 onDeleteTask={() => {}}
-                users={users}
             />
           ) : null}
         </DragOverlay>
@@ -385,6 +361,7 @@ const KanbanBoard = ({ tasks, onStatusChange, users, onUpdateTask, onViewTask, o
         open={showModal}
         onClose={() => setShowModal(false)}
         assignees={modalAssignees}
+        task={activeTask} 
         onRemoveAssignee={handleRemoveAssignee}
       />
     </>

@@ -21,6 +21,12 @@ exports.createTask = async (req, res) => {
 
     await task.save();
 
+    // THE FIX: Before you send the response, populate the user details.
+    await task.populate({
+        path: 'assignedTo',
+        select: 'personalDetails contactDetails' // Only send the details we need
+    });
+
     res.status(201).json(task);
   } catch (err) {
     console.error("Task creation failed:", err.message);
@@ -33,7 +39,7 @@ exports.createTask = async (req, res) => {
 exports.getTasksByProject = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const tasks = await Task.find({ project: projectId });
+    const tasks = await Task.find({ project: projectId }).populate('assignedTo', 'personalDetails contactDetails');
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -43,7 +49,7 @@ exports.getTasksByProject = async (req, res) => {
 // Get a single task by ID
 exports.getTaskById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id).populate('assignedTo', 'personalDetails contactDetails');
     if (!task) return res.status(404).json({ error: "Task not found" });
     res.json(task);
   } catch (err) {
@@ -54,7 +60,7 @@ exports.getTaskById = async (req, res) => {
 // Update a task
 exports.updateTask = async (req, res) => {
   try {
-    const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('assignedTo', 'personalDetails contactDetails');
     if (!task) return res.status(404).json({ error: "Task not found" });
     res.json(task);
   } catch (err) {

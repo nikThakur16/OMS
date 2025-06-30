@@ -28,6 +28,7 @@ export interface Project {
   archivedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  assignedTo: any[]; // or: assignedTo: User[]; if you have a User type
 }
 
 // Request types for API calls

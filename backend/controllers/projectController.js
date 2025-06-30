@@ -1,5 +1,6 @@
 const Project = require("../models/Project");
 const Task = require("../models/Task");
+const User = require("../models/User");
 
 // Create Project
 exports.createProject = async (req, res) => {
@@ -49,8 +50,17 @@ exports.getProjects = async (req, res) => {
 // Get Project by ID
 exports.getProjectById = async (req, res) => {
   try {
-    // Populate manager's name
-    const project = await Project.findById(req.params.id).populate('manager', 'personalDetails').populate('team' , 'name').populate('departments' , 'name').populate('tasks');
+    const project = await Project.findById(req.params.id)
+      .populate('manager', 'personalDetails')
+      .populate('team', 'name')
+      .populate('departments', 'name')
+      .populate({
+        path: 'tasks',
+        populate: {
+          path: 'assignedTo',
+          select: 'personalDetails contactDetails'
+        }
+      });
     if (!project) return res.status(404).json({ error: "Project not found" });
     res.json(project);
   } catch (err) {
@@ -93,5 +103,54 @@ exports.createTask = async (req, res) => {
     res.status(201).json(task);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+};
+
+exports.assignMembers = async (req, res) => {
+  try {
+    const { assignedTo } = req.body; // array of user IDs
+    const project = await Project.findByIdAndUpdate(
+      req.params.id,
+      { assignedTo },
+      { new: true }
+    ).populate('assignedTo', 'personalDetails');
+    res.json(project);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Get all users assigned to any task in a project
+exports.getTaskAssigneesForProject = async (req, res) => {
+  try {
+    const projectId = req.params.projectId;
+    // Find all tasks for this project
+    const tasks = await Task.find({ project: projectId });
+    // Collect all unique user IDs assigned to any task
+    const userIds = [...new Set(tasks.flatMap(task => (task.assignedTo || []).map(id => id.toString())))];
+    // Fetch only those users, return only personalDetails
+    const users = await User.find({ _id: { $in: userIds } }, 'personalDetails contactDetails');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET ASSIGNABLE USERS FOR A PROJECT
+exports.getAssignableUsersForProject = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.projectId).populate({
+      path: 'assignedTo',
+      select: 'personalDetails.firstName personalDetails.lastName contactDetails', // Select only the fields needed for the dropdown
+    });
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Return the array of users assigned to the project
+    res.json(project.assignedTo);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

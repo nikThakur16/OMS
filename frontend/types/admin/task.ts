@@ -1,7 +1,7 @@
 export type TaskStatus =
   | "backlog"
   | "todo"
-  | "in-progress"
+  | "inprogress"
   | "in-review"
   | "blocked"
   | "done"

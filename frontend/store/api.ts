@@ -8,7 +8,7 @@ import {
   AttendanceMutationResponse,
 } from "@/types/attendance/page";
 import { Task } from "@/types/admin/task";
-import { Project, CreateProjectRequest } from "@/types/admin/project";
+import { Project, CreateProjectRequest, UpdateProjectRequest } from "@/types/admin/project";
 
 import { Announcement } from "@/types/admin/announcement";
 import { Team } from '@/types/admin/team';
@@ -210,6 +210,15 @@ export const api = createApi({
       invalidatesTags: ["Projects"],
     }),
 
+    updateProject: builder.mutation<Project, { id: string; data: UpdateProjectRequest }>({
+      query: ({ id, data }) => ({
+        url: `api/projects/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => ["Projects", { type: "Projects", id }],
+    }),
+
     // TEAMS
     getTeams: builder.query<Team[], void>({
       query: () => "api/teams",
@@ -295,6 +304,16 @@ export const api = createApi({
       }),
       invalidatesTags: ['Tasks'],
     }),
+
+    getTaskAssigneesByProject: builder.query<any[], string>({
+      query: (projectId) => `api/projects/${projectId}/task-assignees`,
+    }),
+
+    // NEW ENDPOINT FOR ASSIGNABLE USERS
+    getAssignableUsersByProject: builder.query<User[], string>({
+      query: (projectId) => `api/projects/${projectId}/assignable-users`,
+      providesTags: (result, error, projectId) => [{ type: 'Users', id: `assignable-${projectId}` }],
+    }),
   }),
 });
 
@@ -321,6 +340,7 @@ export const {
   useGetTeamsQuery,
   useGetDepartmentsQuery,
   useCreateProjectMutation,
+  useUpdateProjectMutation,
   useCreateDepartmentMutation,
   useUpdateTeamMutation,
   useCreateTeamMutation,
@@ -330,4 +350,6 @@ export const {
   useCreateStatusMutation,
   useUpdateStatusMutation,
   useDeleteStatusMutation,
+  useGetTaskAssigneesByProjectQuery,
+  useGetAssignableUsersByProjectQuery,
 } = api;

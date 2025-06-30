@@ -34,7 +34,7 @@ export default function TaskFilters({ onFilter }: TaskFiltersProps) {
         <option value="">All Statuses</option>
         <option value="backlog">Backlog</option>
         <option value="todo">Todo</option>
-        <option value="in-progress">In Progress</option>
+        <option value="inprogress">In Progress</option>
         <option value="in-review">In Review</option>
         <option value="blocked">Blocked</option>
         <option value="done">Done</option>

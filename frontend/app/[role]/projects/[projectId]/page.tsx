@@ -15,7 +15,7 @@ import {
 } from "react-icons/hi";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useGetProjectByIdQuery, useGetTasksByProjectQuery, useCreateTaskForProjectMutation, useUpdateTaskMutation, useDeleteTaskMutation, useGetUsersQuery, useGetStatusesQuery, useCreateStatusMutation, useUpdateStatusMutation, useDeleteStatusMutation } from "@/store/api";
+import { useGetProjectByIdQuery, useGetTasksByProjectQuery, useCreateTaskForProjectMutation, useUpdateTaskMutation, useDeleteTaskMutation, useGetStatusesQuery, useCreateStatusMutation, useUpdateStatusMutation, useDeleteStatusMutation, useGetAssignableUsersByProjectQuery } from "@/store/api";
 import ShortMonthDate from "@/utils/time/ShortMonthDate";
 import { TaskStatus } from '@/types/admin/task';
 import KanbanBoard from '@/components/admin/KanbanBoard';
@@ -23,6 +23,9 @@ import CreateTaskModal from "@/components/admin/CreateTaskModal";
 import TaskDetailsModal from "@/components/admin/TaskDetailsModal";
 import useDebounce from "@/utils/hooks/useDebounce";
 import DeleteConfirm from "@/components/modals/confirmation/DeleteConfirm";
+import { User } from "@/types/users/user";
+import EditProjectModal from "@/components/modals/projects/EditProjectModal";
+import { useUpdateProjectMutation } from "@/store/api";
 
 interface TaskType {
   id: string;
@@ -33,19 +36,10 @@ interface TaskType {
   priority: "high" | "low" | "medium" | "critical";
   dueDate: string;
   tags?: string[];
-  assignedTo?: string[];
+  assignedTo?: User[];
   parentTaskId?: string;
   activityLog?: { userId: string; action: string; details?: any; timestamp: string }[];
 }
-
-interface User {
-  _id: string;
-  personalDetails: {
-    firstName: string;
-    lastName: string;
-  }
-}
-
 
 function KanbanTaskCard({
   task,
@@ -137,12 +131,13 @@ function KanbanTaskCard({
       </div>
       <div className="flex justify-between items-center text-xs text-gray-500 mt-3">
         <div className="flex -space-x-2">
-          {task.assignedTo?.map((userId: string) => (
+          {task.assignedTo?.map((user) => (
             <span
-              key={userId}
+              key={user._id}
               className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow"
+              title={user ? `${user.personalDetails.firstName} ${user.personalDetails.lastName}` : ''}
             >
-              {userId[0]?.toUpperCase()}
+              {user ? user.personalDetails.firstName[0].toUpperCase() : 'U'}
             </span>
           ))}
         </div>
@@ -204,7 +199,12 @@ function normalizeTasks(tasks: any[] = []): TaskType[] {
   }));
 }
 
-const Header = ({ projectData, onAddTask }: { projectData: any; onAddTask: () => void; }) => (
+const Header = ({ projectData, onAddTask }: { projectData: any; onAddTask: () => void; }) => {
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  
+  return (
+
     <div className="relative rounded-3xl p-6 bg-[#175075]  shadow-xl mb-8 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-3xl pointer-events-none" />
       <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -283,13 +283,13 @@ const Header = ({ projectData, onAddTask }: { projectData: any; onAddTask: () =>
         </div>
       </div>
       <button
-      onClick={onAddTask}
-        className="bg-white/20 absolute right-5 top-5   text-white text-xs px-3 py-2 cursor-pointer rounded-full items-baseline font-semibold uppercase tracking-wider"
+
+        className="bg-white/20 absolute right-5 top-5   text-white text-sm px-3 py-2 cursor-pointer rounded-full items-baseline font-semibold  tracking-wider"
       >
-        Add task
+        Edit Project
       </button>
     </div>
-  );
+  );}
 
 const Toolbar = ({
   taskCount,
@@ -487,12 +487,13 @@ const TaskList = ({ tasks, users, onView, onEdit, onDelete }: { tasks: TaskType[
               <td className="font-semibold">{task.tags?.join(", ")}</td>
               <td className="font-semibold">
                 <div className="flex -space-x-2 items-center justify-center">
-                  {task.assignedTo?.map((userId) => (
+                  {task.assignedTo?.map((user) => (
                     <span
-                      key={userId}
-                      className="w-6 h-6 rounded-full  bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow"
+                      key={user._id}
+                      className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold shadow"
+                      title={user ? `${user.personalDetails.firstName} ${user.personalDetails.lastName}` : ''}
                     >
-                      {users.find(u => u._id === userId)?.personalDetails.firstName[0]?.toUpperCase() || 'U'}
+                      {user ? user.personalDetails.firstName[0].toUpperCase() : 'U'}
                     </span>
                   ))}
                 </div>
@@ -547,38 +548,22 @@ export default function ProjectDetailsPage() {
   const [createTaskForProject] = useCreateTaskForProjectMutation();
   const [updateTask] = useUpdateTaskMutation();
   const [deleteTask] = useDeleteTaskMutation();
-  const { data: users = [] } = useGetUsersQuery();
+  const { data: assignableUsers, isLoading: usersLoading } = useGetAssignableUsersByProjectQuery(project, {
+    skip: !project,
+  });
 
   console.log("Project Data:", projectData);
   console.log("Tasks Data:", tasksData);
-
-  // Fetch statuses for this project
-  // const { data: statuses = [], refetch: refetchStatuses } = useGetStatusesQuery({ project });
-  // const [createStatus] = useCreateStatusMutation();
-  // const [updateStatus] = useUpdateStatusMutation();
-  // const [deleteStatus] = useDeleteStatusMutation();
 
   const [view, setView] = useState<"kanban" | "list" | "whiteboard">("kanban");
   const [selectedTask, setSelectedTask] = useState<TaskType | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<"view" | "edit" | "create">("view");
-  // const [newTask, setNewTask] = useState({ title: "", description: "" });
-  // const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  // const [newComment, setNewComment] = useState("");
   const [tasks, setTasks] = useState<TaskType[]>([]);
   
 
 
-  // Modal state for creating a new status
   const [showStatusModal, setShowStatusModal] = useState(false);
-  // const [newStatusName, setNewStatusName] = useState("");
-  // const [newStatusColor, setNewStatusColor] = useState("#cccccc");
-
-  // // Add advanced status deletion modal state
-  // const [showDeleteStatusModal, setShowDeleteStatusModal] = useState(false);
-  // const [statusToDelete, setStatusToDelete] = useState<Status | null>(null);
-  // const [moveToStatus, setMoveToStatus] = useState("");
-  // const [tasksInStatus, setTasksInStatus] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -590,12 +575,9 @@ export default function ProjectDetailsPage() {
   
   
 
-const debouncedSearchTerm = useDebounce(searchTerm, 300); // 1. Debounce the search term
-
-const normalizedTasks = useMemo(() => normalizeTasks(tasksData), [tasksData]);
+const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const filteredAndSortedTasks = useMemo(() => {
-    // 2. THIS NOW USES YOUR LOCAL `tasks` STATE
     let result = tasks; 
 
     if (debouncedSearchTerm) {
@@ -626,12 +608,13 @@ const normalizedTasks = useMemo(() => normalizeTasks(tasksData), [tasksData]);
     }
 
     return result;
-  }, [tasks, debouncedSearchTerm, filters]); // 2.1 DEPENDS ON LOCAL `tasks`
+  }, [tasks, debouncedSearchTerm, filters]);
 
   useEffect(() => {
-    // This now correctly syncs the server data to your local state
-    setTasks(normalizedTasks);
-  }, [normalizedTasks]);
+    if (tasksData) {
+      setTasks(normalizeTasks(tasksData));
+    }
+  }, [tasksData]);
 
   if (isLoading) {
     return (
@@ -646,22 +629,18 @@ const normalizedTasks = useMemo(() => normalizeTasks(tasksData), [tasksData]);
     );
   }
 
-  // 3. THIS HANDLER NOW PERFORMS AN OPTIMISTIC UPDATE
   const handleStatusChange = async (taskId: string, newStatus: string) => {
-    // Update the UI instantly
     setTasks(prevTasks =>
         prevTasks.map(task =>
             task.id === taskId ? { ...task, status: newStatus } : task
         )
     );
 
-    // Then, send the update to the server
     try {
       await updateTask({ id: taskId, data: { status: newStatus as TaskStatus } }).unwrap();
     } catch (err) {
       console.error("Failed to update task status:", err);
-      // If the server fails, revert the change in the UI
-      setTasks(normalizedTasks);
+      setTasks(normalizeTasks(tasksData));
       alert("Failed to update task. Please try again.");
     }
   };
@@ -669,13 +648,11 @@ const normalizedTasks = useMemo(() => normalizeTasks(tasksData), [tasksData]);
   const handleView = (task: TaskType) => { setSelectedTask(task); setModalMode('view'); setShowModal(true); };
   const handleEdit = (task: TaskType) => { setSelectedTask(task); setModalMode('edit'); setShowModal(true); };
   const handleDeleteTask = async (task: TaskType) => {
-    // Optimistically remove from UI
     setTasks(prev => prev.filter(t => t._id !== task._id));
     try {
       await deleteTask(task._id).unwrap();
     } catch (err) {
-      // Optionally, revert UI and show error
-      setTasks(normalizedTasks);
+      setTasks(normalizeTasks(tasksData));
       alert("Failed to delete task.");
     }
   };
@@ -687,13 +664,11 @@ const normalizedTasks = useMemo(() => normalizeTasks(tasksData), [tasksData]);
   const handleUpdateTask = (update: { id: string; data: Partial<any> }) => {
     const { id, data } = update;
 
-    // Convert Date object to ISO string if it exists
     const apiData = {
       ...data,
       dueDate: data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate,
     };
 
-    // Call the original mutation with the corrected data
     return updateTask({ id, data: apiData });
   };
 
@@ -713,23 +688,22 @@ const normalizedTasks = useMemo(() => normalizeTasks(tasksData), [tasksData]);
       {view === 'kanban' && (
         <KanbanBoard
           tasks={filteredAndSortedTasks}
-          users={users}
           onStatusChange={handleStatusChange}
           onUpdateTask={handleUpdateTask}
-          onViewTask={(task) => handleView(task as TaskType)}
-          onEditTask={(task) => handleEdit(task as TaskType)}
+          onViewTask={handleView}
+          onEditTask={handleEdit}
           onDeleteTask={handleDeleteTask}
+          assignees={assignableUsers || []}
         />
       )}
-      {view === 'list' && <TaskList tasks={filteredAndSortedTasks} users={users} onView={handleView} onEdit={handleEdit} onDelete={handleDeleteTask} />}
+      {view === 'list' && <TaskList tasks={filteredAndSortedTasks} users={assignableUsers || []} onView={handleView} onEdit={handleEdit} onDelete={handleDeleteTask} />}
 
       {modalMode === 'create' ? (
         <CreateTaskModal
           isOpen={showModal}
-          onSubmit={() => {
-            setShowModal(false);
-          }}
           onClose={() => setShowModal(false)}
+          onSubmit={handleAddTask}
+          assignableUsers={assignableUsers || []}
         />
       ) : (
         <TaskDetailsModal
@@ -740,7 +714,7 @@ const normalizedTasks = useMemo(() => normalizeTasks(tasksData), [tasksData]);
             setSelectedTask(null);
           }}
           task={selectedTask}
-          assignees={users}
+          assignees={assignableUsers || []}
           onUpdate={async (data) => updateTask({ id: data._id, data })}
         />
       )}

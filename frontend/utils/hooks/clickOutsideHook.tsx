@@ -1,15 +1,29 @@
-import { useEffect, useRef } from "react";
+import { useEffect, RefObject } from "react";
 
-const useClickOutside=(ref, onClose)=> {
+type AnyEvent = MouseEvent | TouchEvent;
+
+export default function useClickOutside<T extends HTMLElement>(
+  ref: RefObject<T>,
+  onClose: () => void
+): void {
   useEffect(() => {
-    function handleClick(event) {
-      if (ref.current && !ref.current.contains(event.target)) {
-        onClose();
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [ref, onClose]);
-}
+    const listener = (event: AnyEvent) => {
+      const el = ref?.current;
 
-export default useClickOutside;
+      // Do nothing if clicking ref's element or descendent elements
+      if (!el || el.contains(event.target as Node)) {
+        return;
+      }
+
+      onClose();
+    };
+
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, [ref, onClose]); // Reload only if ref or handler changes
+}

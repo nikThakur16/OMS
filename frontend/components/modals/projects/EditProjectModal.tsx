@@ -393,7 +393,7 @@ export default function EditProjectModal({ open, onClose, project, onUpdate }: E
                     >
                       Update Project
                     </button>
-                  </div>
+                  </div> 
                 </Form>
               );
             }}

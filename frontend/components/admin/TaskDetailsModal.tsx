@@ -14,7 +14,7 @@ import useClickOutside from '@/utils/hooks/clickOutsideHook';
 import Select from 'react-select';
 
 
-const statusOptions = [ 'todo', 'in-progress',  'done'];
+const statusOptions = [ 'todo', 'inprogress',  'done'];
 const priorityOptions = ['low', 'medium', 'high', 'critical'];
 
 const TaskSchema = Yup.object().shape({
