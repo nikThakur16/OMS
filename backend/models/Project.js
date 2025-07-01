@@ -31,7 +31,7 @@ const ProjectSchema = new Schema(
     customFieldValues: { type: Schema.Types.Mixed, default: {} },
     slackChannel: String,
     teamsChannel: String,
-    deletedAt: { type: Date },
+    deletedAt: { type: Date, default: null },
     archivedAt: { type: Date },
     estimatedHours: Number,
     actualHours: Number,

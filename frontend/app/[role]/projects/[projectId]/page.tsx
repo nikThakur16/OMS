@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   HiOutlineSearch,
@@ -26,6 +26,8 @@ import DeleteConfirm from "@/components/modals/confirmation/DeleteConfirm";
 import { User } from "@/types/users/user";
 import EditProjectModal from "@/components/modals/projects/EditProjectModal";
 import { useUpdateProjectMutation } from "@/store/api";
+import { toast } from "react-toastify";
+import SuccessToast, { FailedToast } from "@/components/toasts/Notifications";
 
 interface TaskType {
   id: string;
@@ -201,13 +203,25 @@ function normalizeTasks(tasks: any[] = []): TaskType[] {
 
 const Header = ({ projectData, onAddTask }: { projectData: any; onAddTask: () => void; }) => {
   const [showEditModal, setShowEditModal] = useState(false);
+  const [updateProject] = useUpdateProjectMutation();
+  const router = useRouter();
+  const handleUpdateProject=async(data:any)=>{
+    try {
+      await updateProject({id:projectData._id,data}).unwrap();
+      setShowEditModal(false);
+      toast(<SuccessToast message="Project updated successfully" />);
+      router.refresh();
+    } catch (error) {
+      toast(<FailedToast message="Failed to update project" />);
+    }
+  }
 
   
   return (
 
     <div className="relative rounded-3xl p-6 bg-[#175075]  shadow-xl mb-8 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-3xl pointer-events-none" />
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="relative  flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="">
           <div className="flex items-center justify-between">
             {" "}
@@ -281,13 +295,16 @@ const Header = ({ projectData, onAddTask }: { projectData: any; onAddTask: () =>
             </div>
           )}
         </div>
+     
       </div>
       <button
+      onClick={() => setShowEditModal(true)}
 
-        className="bg-white/20 absolute right-5 top-5   text-white text-sm px-3 py-2 cursor-pointer rounded-full items-baseline font-semibold  tracking-wider"
+        className="bg-white/20 absolute right-5 top-5    text-white text-sm px-3 py-2 cursor-pointer rounded-full items-baseline font-semibold  tracking-wider"
       >
         Edit Project
       </button>
+      {showEditModal && <EditProjectModal open={showEditModal} onClose={() => setShowEditModal(false)} project={projectData} onUpdate={handleUpdateProject}/>}
     </div>
   );}
 
@@ -430,6 +447,7 @@ const Toolbar = ({
           </button>
         </div>
       </div>
+   
     </div>
   );
 };
@@ -525,7 +543,7 @@ const TaskList = ({ tasks, users, onView, onEdit, onDelete }: { tasks: TaskType[
       
     </div>
     {showConfirm && (
-        <div className='absolute right-0 mt-2 w-48 bg-black-900/40 border rounded shadow z-50'>
+        <div className='absolute right-0 mt-2 w-48 bg-black-900/40 border rounded shadow z-30'>
         <DeleteConfirm 
         Data={tasks}
         onClose={() => setShowConfirm(false)}

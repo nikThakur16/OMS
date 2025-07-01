@@ -79,8 +79,8 @@ exports.updateProject = async (req, res) => {
   }
 };
 
-// Soft Delete Project
-exports.deleteProject = async (req, res) => {
+// Move project to trash (soft delete)
+exports.softDeleteProject = async (req, res) => {
   try {
     const project = await Project.findByIdAndUpdate(
       req.params.id,
@@ -88,7 +88,7 @@ exports.deleteProject = async (req, res) => {
       { new: true }
     );
     if (!project) return res.status(404).json({ error: "Project not found" });
-    res.json({ message: "Project soft-deleted", project });
+    res.json({ message: "Project moved to trash", project });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -139,17 +139,46 @@ exports.getTaskAssigneesForProject = async (req, res) => {
 // GET ASSIGNABLE USERS FOR A PROJECT
 exports.getAssignableUsersForProject = async (req, res) => {
   try {
+    if (!req.params.projectId) {
+      return res.status(400).json({ error: "Project ID is required" });
+    }
+
     const project = await Project.findById(req.params.projectId).populate({
       path: 'assignedTo',
-      select: 'personalDetails.firstName personalDetails.lastName contactDetails', // Select only the fields needed for the dropdown
+      select: 'personalDetails.firstName personalDetails.lastName contactDetails',
     });
 
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    // Return the array of users assigned to the project
     res.json(project.assignedTo);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Permanently delete project
+exports.hardDeleteProject = async (req, res) => {
+  try {
+    const project = await Project.findByIdAndDelete(req.params.id);
+    if (!project) return res.status(404).json({ error: "Project not found" });
+    res.json({ message: "Project permanently deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Restore project from trash (soft delete)
+exports.restoreProject = async (req, res) => {
+  try {
+    const project = await Project.findByIdAndUpdate(
+      req.params.id,
+      { deletedAt: null },
+      { new: true }
+    );
+    if (!project) return res.status(404).json({ error: "Project not found" });
+    res.json({ message: "Project restored", project });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

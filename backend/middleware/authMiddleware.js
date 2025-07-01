@@ -49,11 +49,12 @@ exports.canModifyProjectContent = async (req, res, next) => {
         }
 
         let projectId;
+        let task = null;
 
         if (req.params.projectId) {
             projectId = req.params.projectId;
         } else if (req.params.id) {
-            const task = await Task.findById(req.params.id);
+            task = await Task.findById(req.params.id);
             if (task) {
                 projectId = task.project;
             }
@@ -69,9 +70,14 @@ exports.canModifyProjectContent = async (req, res, next) => {
         }
 
         const isManager = project.manager && project.manager.toString() === userId.toString();
-        const isAssigned = project.assignedTo.map(id => id.toString()).includes(userId.toString());
+        const isProjectAssigned = project.assignedTo.map(id => id.toString()).includes(userId.toString());
 
-        if (isManager || isAssigned) {
+        let isTaskAssigned = false;
+        if (task && task.assignedTo.map(id => id.toString()).includes(userId.toString())) {
+            isTaskAssigned = true;
+        }
+
+        if (isManager || isProjectAssigned || isTaskAssigned) {
             return next();
         }
 
@@ -79,6 +85,39 @@ exports.canModifyProjectContent = async (req, res, next) => {
 
     } catch (error) {
         console.error("Authorization error in canModifyProjectContent:", error);
+        res.status(500).json({ message: 'Server error during authorization.' });
+    }
+};
+
+exports.canModifyProject = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const userRole = req.user.personalDetails.role;
+        const projectId = req.params.id || req.params.projectId;
+
+        if (!projectId) {
+            return res.status(400).json({ message: 'Project ID is required.' });
+        }
+
+        // Admins and HR can always edit
+        if (['Admin', 'HR'].includes(userRole)) {
+            return next();
+        }
+
+        const project = await Project.findById(projectId);
+
+        if (!project) {
+            return res.status(404).json({ message: 'Project not found.' });
+        }
+
+        // Allow the manager to edit
+        if (project.manager && project.manager.toString() === userId.toString()) {
+            return next();
+        }
+
+        return res.status(403).json({ message: 'Access denied. Only the project manager, Admin, or HR can edit this project.' });
+    } catch (error) {
+        console.error("Authorization error in canModifyProject:", error);
         res.status(500).json({ message: 'Server error during authorization.' });
     }
 };

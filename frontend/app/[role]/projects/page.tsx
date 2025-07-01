@@ -10,14 +10,21 @@ import {
   HiOutlineCalendar,
 } from "react-icons/hi";
 import { useRouter } from "next/navigation";
-import { useGetProjectsQuery, useCreateProjectMutation, useUpdateProjectMutation } from "@/store/api";
+import {
+  useGetProjectsQuery,
+  useCreateProjectMutation,
+  useUpdateProjectMutation,
+  useDeleteProjectMutation,
+} from "@/store/api";
 import CreateProjectModal from "@/components/modals/projects/createProject";
 import ShortMonthDate from "@/utils/time/ShortMonthDate";
 import { useAppSelector } from "@/store/hooks";
 import EditProjectModal from "@/components/modals/projects/EditProjectModal";
 import { Project } from "@/types/admin/project";
 import useClickOutside from "@/utils/hooks/clickOutsideHook";
-
+import { toast } from "react-toastify";
+import DeleteConfirm from "@/components/modals/confirmation/DeleteConfirm";
+import SuccessToast, { FailedToast } from "@/components/toasts/Notifications";
 export default function ProjectsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,6 +33,7 @@ export default function ProjectsPage() {
   const { data: projectsData, isLoading, error } = useGetProjectsQuery();
   const [createProject] = useCreateProjectMutation();
   const [updateProject] = useUpdateProjectMutation();
+  const [deleteProject] = useDeleteProjectMutation();
   const loggedUser = useAppSelector((state) => state?.login?.user);
   const [showMenu, setShowMenu] = useState(false);
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(
@@ -41,6 +49,7 @@ export default function ProjectsPage() {
     completed: "bg-blue-100 text-blue-800",
     archived: "bg-red-100 text-red-800",
   };
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Filter projects based on search and status
   const filteredProjects = (projectsData || []).filter((project) => {
@@ -51,30 +60,36 @@ export default function ProjectsPage() {
         .includes(searchTerm.toLowerCase());
     const matchesStatus =
       filterStatus === "all" || project.status === filterStatus;
+    const isTrashed = project.deletedAt !== null;
 
     if (loggedUser?.role === "Employee") {
       return (
         matchesSearch &&
         matchesStatus &&
+        !isTrashed &&
         project.assignedTo?.some(
           (member) => String(member._id) === String(loggedUser.id)
         )
       );
     }
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && !isTrashed;
   });
 
-  const handleProjectClick = ( id: string) => {
-    
-    if (loggedUser?.role ) {
+  const handleProjectClick = (id: string) => {
+    if (loggedUser?.role) {
       router.push(`/${loggedUser.role.toLowerCase()}/projects/${id}`);
     }
   };
 
   // Placeholder for delete (should call backend API)
-  const handleDeleteProject = () => {
-    // TODO: Implement delete project API call
-    alert("Delete project not implemented");
+  const handleDeleteProject = async (id: string) => {
+    try {
+      await deleteProject(id).unwrap();
+     
+    } catch (error) {
+      console.error("Failed to delete project:", error);
+ 
+    }
   };
   const handleEditClose = () => {
     setShowEditModal(false);
@@ -85,33 +100,47 @@ export default function ProjectsPage() {
     if (!selectedProject) return;
     try {
       await updateProject({ id: selectedProject._id, data }).unwrap();
-      alert("Project updated successfully!");
+      toast(<SuccessToast message="Project moved to trash successfully" />);
       handleEditClose();
     } catch (error) {
       console.error("Failed to update project:", error);
-      alert("Failed to update project.");
+      toast(<FailedToast message="Failed to move project to trash" />);
     }
   };
 
-
   return (
-    <div onClick={()=> {
-      setShowMenu(false);
-      setOpenMenuProjectId(null);
-     
-    }} className="p-6 bg-white min-h-screen">
+    <div
+      onClick={() => {
+        setShowMenu(false);
+        setOpenMenuProjectId(null);
+      }}
+      className="p-6 bg-white min-h-screen"
+    >
       {/* Header */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-3xl font-bold  text-[#04567B]">Projects</h1>
           {loggedUser && loggedUser.role !== "Employee" && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 bg-[#175075] text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:from-indigo-600 hover:to-fuchsia-600 transition-all duration-300 transform hover:scale-105"
-            >
-              <HiOutlinePlus className="text-xl" />
-              Create Project
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center justify-center gap-2 bg-[#175075] text-white px-3 py-2 rounded-xl font-semibold shadow-lg transition-all text-sm duration-300 transform hover:scale-105"
+              >
+                <HiOutlinePlus className="text-md" />
+                Create Project
+              </button>
+              <button
+                onClick={() =>
+                  router.push(
+                    `/${loggedUser.role.toLowerCase()}/projects/trash-projects`
+                  )
+                }
+                className="flex items-center justify-center gap-2 bg-[#175075] text-sm text-white px-3 py-2 rounded-xl font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
+              >
+               <img width="15" height="15" className="mt-[-4px]" src="https://img.icons8.com/forma-regular-filled-sharp/24/FFFFFF/trash.png" alt="trash"/>
+                Trash Projects
+              </button>
+            </div>
           )}
         </div>
         <p className="text-[#04567B] font-semibold">
@@ -247,17 +276,22 @@ export default function ProjectsPage() {
                         Edit Project
                       </button>
                       <button
-                        onClick={handleDeleteProject}
+                        onClick={() => {
+                          setConfirmDeleteId(project?._id);
+                        }}
                         className=" flex gap-2 items-center text-gray-700 hover:text-red-600 transition-colors"
                         title="Delete Project"
                       >
                         <HiOutlineTrash />
-                        delete Project
+                        move to trash
                       </button>
                     </div>
                   )}
+                  
                 </div>
+                
               )}
+              
             </div>
             {/* Dates */}
             <div className="space-y-2 mb-4">
@@ -285,6 +319,18 @@ export default function ProjectsPage() {
             </div>
           </motion.div>
         ))}
+        {/* {confirmDeleteId === project?._id && (
+                    <DeleteConfirm
+                    open={true}
+                    title="Confirm Trash"
+                    
+                      onClose={() => setConfirmDeleteId(null)}
+                      Data={project}
+                      message={"Are you sure move to trash?"}
+                      subMessage={""}
+                      handleDelete={() => handleDeleteProject(project?._id)}
+                    />
+                  )} */}
       </div>
 
       {/* Empty State */}
@@ -301,7 +347,10 @@ export default function ProjectsPage() {
                 Create your first project to get started
               </p>
               <button
-                onClick={(e) =>{ e.stopPropagation(); setShowCreateModal(true)}}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCreateModal(true);
+                }}
                 className="bg-[#175075] hover:bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
               >
                 Create Project
@@ -318,10 +367,10 @@ export default function ProjectsPage() {
         onCreate={async (data) => {
           try {
             await createProject(data).unwrap();
-            alert("Project created successfully!");
+            toast.success("Project created successfully");
             setShowCreateModal(false);
           } catch {
-            alert("Failed to create project.");
+            toast.error("Failed to create project");
           }
         }}
       />
@@ -330,6 +379,22 @@ export default function ProjectsPage() {
         project={selectedProject}
         onClose={handleEditClose}
         onUpdate={handleUpdateProject}
+      />
+      <DeleteConfirm
+        open={!!confirmDeleteId}
+        title="Confirm Trash"
+        message="Are you sure want to move to Trash?"
+        subMessage=""
+        onClose={() => {setConfirmDeleteId(null);   setOpenMenuProjectId(null);}}
+        Data={selectedProject}
+        handleDelete={() => {
+          if (confirmDeleteId) {
+            handleDeleteProject(confirmDeleteId);
+            setConfirmDeleteId(null);
+            setOpenMenuProjectId(null);
+          }
+        }
+      }
       />
     </div>
   );

@@ -219,6 +219,39 @@ export const api = createApi({
       invalidatesTags: (result, error, { id }) => ["Projects", { type: "Projects", id }],
     }),
 
+    deleteProject: builder.mutation<{ message: string; project: any }, string>({
+      query: (id) => ({
+        url: `api/projects/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, id) => [
+        "Projects",
+        { type: "Projects", id }
+      ],
+    }),
+
+    restoreProject: builder.mutation<{ message: string; project: any }, string>({
+      query: (id) => ({
+        url: `api/projects/${id}/restore`,
+        method: "POST",
+      }),
+      invalidatesTags: (result, error, id) => [
+        "Projects",
+        { type: "Projects", id }
+      ],
+    }),
+
+    hardDeleteProject: builder.mutation<{ message: string }, string>({
+      query: (id) => ({
+        url: `api/projects/${id}/hard`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, id) => [
+        "Projects",
+        { type: "Projects", id }
+      ],
+    }),
+
     // TEAMS
     getTeams: builder.query<Team[], void>({
       query: () => "api/teams",
@@ -352,4 +385,7 @@ export const {
   useDeleteStatusMutation,
   useGetTaskAssigneesByProjectQuery,
   useGetAssignableUsersByProjectQuery,
+  useDeleteProjectMutation,
+  useRestoreProjectMutation,
+  useHardDeleteProjectMutation,
 } = api;

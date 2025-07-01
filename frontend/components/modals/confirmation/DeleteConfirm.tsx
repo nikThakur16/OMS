@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { SuccessToast, FailedToast } from "@/components/toasts/Notifications";
 
 const DeleteConfirm = (props: any) => {
-  const { id, onClose, handleDelete, Data,modalRef,open } = props;
+  const { id, onClose, handleDelete, Data,modalRef,open ,message,title,subMessage} = props;
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleConfirmDelete = async (e:any) => {
@@ -23,7 +23,7 @@ const DeleteConfirm = (props: any) => {
       onClose();
     }
   }
-  console.log("=====",Data,  onClose, handleDelete);
+
   
 
   return (
@@ -43,7 +43,7 @@ const DeleteConfirm = (props: any) => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.3 }}
-      className=" flex bg-white w-[350px] h-[320px]  rounded-lg shadow-lg flex-col items-center justify-center  "
+      className=" flex bg-white w-[400px] h-[320px]  rounded-lg shadow-lg flex-col items-center justify-center  "
     >
       {/* Warning icon with animation */}
       <motion.div
@@ -73,15 +73,15 @@ const DeleteConfirm = (props: any) => {
         transition={{ delay: 0.2 }}
         className="text-center space-y-2 mb-6"
       >
-        <h3 className="text-xl font-semibold text-[#042349]">Confirm Deletion</h3>
+        <h3 className="text-xl font-semibold text-[#042349]">{title}</h3>
         <p className="text-[#042349] font-medium">
-          Are you sure you want to delete{" "}
+          {message} 
           <span className="font-bold text-red-500">
-            {Data.title} 
-          </span>
-          ?
+          {Data?.title || Data?.name||'this item' } 
+          </span><br />
+          {subMessage}
         </p>
-        <p className="text-sm text-[#042349]">This action cannot be undone</p>
+
       </motion.div>
 
       {/* Buttons with hover effects */}
@@ -96,9 +96,9 @@ const DeleteConfirm = (props: any) => {
           whileTap={{ scale: 0.95 }}
           onClick={onClose}
           disabled={isDeleting}
-          className="px-4 py-2 text-sm font-medium  bg-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50 transition-all duration-200"
+          className="px-5 py-2 text-sm font-medium  bg-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50 transition-all duration-200"
         >
-          Cancel
+     No
         </motion.button>
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -130,7 +130,7 @@ const DeleteConfirm = (props: any) => {
               Deleting...
             </>
           ) : (
-            'Delete'
+            'Yes'
           )}
         </motion.button>
       </motion.div>

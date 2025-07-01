@@ -1,13 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const projectController = require("../controllers/projectController");
-const { protect, authorize, canModifyProjectContent } = require("../middleware/authMiddleware");
+const { protect, authorize, canModifyProjectContent, canModifyProject } = require("../middleware/authMiddleware");
 const taskController = require("../controllers/taskController");
 
 // Only Admins can create, update, delete
 router.post("/", protect, authorize("Admin"), projectController.createProject);
-router.put("/:id", protect, authorize("Admin"), projectController.updateProject);
-router.delete("/:id", protect, authorize("Admin"), projectController.deleteProject);
+router.put("/:id", protect, canModifyProject, projectController.updateProject);
+
 
 // Anyone authenticated can view
 router.get("/", protect, projectController.getProjects);
@@ -36,5 +36,14 @@ router.get(
   authorize(['Admin', 'Employee', 'Manager', 'HR']), // Ensures user has a valid role
   projectController.getAssignableUsersForProject
 );
+
+// Soft delete
+router.delete('/:id', protect, canModifyProject, projectController.softDeleteProject);
+
+// Restore
+router.post('/:id/restore', protect, canModifyProject, projectController.restoreProject);
+
+// Hard delete
+router.delete('/:id/hard', protect, authorize("Admin"), canModifyProject, projectController.hardDeleteProject);
 
 module.exports = router;
