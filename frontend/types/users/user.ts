@@ -1,3 +1,5 @@
+import { ContactDetails } from './user';
+import { PersonalDetails } from '@/components/registerModals/personalDetails';
 // User Types - Based on backend User model
 export type UserRole = 'Admin' | 'Employee' | 'HR' | 'Manager';
 
@@ -19,8 +21,8 @@ export type UserDepartment =
 export interface PersonalDetails {
   firstName: string;
   lastName: string;
-  role: UserRole;
-  department: UserDepartment;
+  role?: UserRole;
+  department?: UserDepartment;
 }
 
 // Address Details
@@ -43,6 +45,13 @@ export interface ContactDetails {
   githubUrl?: string;
 }
 
+export interface assginedUsers{
+  _id:string;
+  PersonalDetails: PersonalDetails;
+  ContactDetails: ContactDetails;
+
+}
+
 // Bank Details
 export interface BankDetails {
   accountHolderName: string;
@@ -55,18 +64,19 @@ export interface BankDetails {
 // Main User interface
 export interface User {
   _id: string;
+
   personalDetails: PersonalDetails;
   organizationId: string;
   addressDetails: AddressDetails;
   contactDetails: ContactDetails;
   bankDetails: BankDetails;
-  password: string; // Only for create/update, not for responses
+  password?: string; // Only for create/update, not for responses
   resetPasswordToken?: string;
   resetPasswordExpire?: Date;
   createdAt: Date;
   updatedAt: Date;
-  teams: string[]; // Array of team IDs the user belongs to
-  projects: string[]; // Array of project IDs the user is associated with
+  teams?: string[]; // Array of team IDs the user belongs to
+  projects?: string[]; // Array of project IDs the user is associated with
 }
 
 // Request types for API calls

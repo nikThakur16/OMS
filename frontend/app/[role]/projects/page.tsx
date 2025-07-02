@@ -67,8 +67,11 @@ export default function ProjectsPage() {
         matchesSearch &&
         matchesStatus &&
         !isTrashed &&
-        project.assignedTo?.some(
-          (member) => String(member._id) === String(loggedUser.id)
+        (
+          project.assignedTo?.some(
+            (member) => String(member._id) === String(loggedUser.id)
+          ) ||
+          String(project.manager?._id) === String(loggedUser.id)
         )
       );
     }
@@ -114,7 +117,7 @@ export default function ProjectsPage() {
         setShowMenu(false);
         setOpenMenuProjectId(null);
       }}
-      className="p-6 bg-white min-h-screen"
+      className="p-6  min-h-screen"
     >
       {/* Header */}
       <div className="mb-8">
@@ -163,13 +166,13 @@ export default function ProjectsPage() {
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-3 rounded-xl bg-white/60 border border-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-300 text-gray-700 shadow"
+          className="px-4 py-3 rounded-xl bg-white/60 border text-[#04567B] border-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-300 font-bold shadow"
         >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="on-hold">On Hold</option>
-          <option value="completed">Completed</option>
-          <option value="archived">Archived</option>
+          <option className="font-bold text-[#04567B]" value="all">All Status</option>
+          <option  className="font-semibold text-[#04567B]" value="active">Active</option>
+          <option className="font-semibold text-[#04567B]" value="on-hold">On Hold</option>
+          <option className="font-semibold text-[#04567B]" value="completed">Completed</option>
+          <option className="font-semibold text-[#04567B]" value="archived">Archived</option>
         </select>
       </div>
 
@@ -190,11 +193,8 @@ export default function ProjectsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            whileHover={{
-              scale: 1.03,
-              boxShadow: "0 8px 32px rgba(80,80,180,0.15)",
-            }}
-            className="relative bg-white/90 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 cursor-pointer transition-all duration-300 hover:shadow-2xl group"
+          
+            className="relative bg-white backdrop-blur-md rounded-lg px-6 py-2 shadow border border-white/30 cursor-pointer transition-all duration-300  group"
             onClick={(event) => {
               if (!showMenu) {
                 handleProjectClick(project._id);
@@ -204,16 +204,16 @@ export default function ProjectsPage() {
             {/* Project Avatar */}
 
             {/* Project Header */}
-            <div className="flex justify-between items-start mb-4 pt-2">
+            <div className="flex justify-between items-start text-[#04567B] mb-4 pt-2">
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-[#04567B] mb-1">
+                <h3 className="text-xl tracking-wider font-bold  mb-2">
                   {project.name}
                 </h3>
-                <p className="text-gray-600 text-sm line-clamp-2">
+                <p className=" text-sm font-medium line-clamp-2">
                   {project.description}
                 </p>
               </div>
-              <div className="flex flex-col gap-2 ml-4 items-end">
+              <div className="flex flex-col gap-2 mr-4 items-end">
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${
                     statusColors[project.status] || "bg-gray-200 text-gray-800"
@@ -248,7 +248,7 @@ export default function ProjectsPage() {
                 <div
                   ref={menuRef}
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute right-2 top-10 bg-white shadow-lg flex flex-col items-center rounded-lg p-4 w-48 z-30"
+                  className="absolute right-2 top-10 bg-[#D3E7F0] shadow-lg flex flex-col text-[#04567B] text-sm  font-semibold items-center rounded-lg p-4 w-48 z-30"
                 >
                   <button
                     onClick={() =>
@@ -258,31 +258,31 @@ export default function ProjectsPage() {
                         }`
                       )
                     }
-                    className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors mb-2"
+                    className="flex items-center gap-2 text-[#04567B] hover:text-indigo-600 transition-colors mb-2"
                   >
-                    <HiOutlineEye />
+                    <HiOutlineEye className="text-xl" />
                     View Details
                   </button>
-                  {loggedUser && loggedUser.role !== "Employee" && (
+                  {loggedUser && (String(loggedUser.id) ===String(project.manager?._id)|| loggedUser.role ==="Admin")&& (
                     <div className="flex flex-col ">
                       <button
                         onClick={() => {
                           setSelectedProject(project);
                           setShowEditModal(true);
                         }}
-                        className="flex items-center gap-3 text-gray-700 hover:text-indigo-600 transition-colors mb-2"
+                        className="flex items-center gap-3 text-[#04567B] hover:text-indigo-600 transition-colors mb-2"
                       >
-                        <HiOutlinePencil />
+                        <HiOutlinePencil className="text-xl" />
                         Edit Project
                       </button>
                       <button
                         onClick={() => {
                           setConfirmDeleteId(project?._id);
                         }}
-                        className=" flex gap-2 items-center text-gray-700 hover:text-red-600 transition-colors"
+                        className=" flex gap-2 items-center text-[#04567B] hover:text-red-600 transition-colors"
                         title="Delete Project"
                       >
-                        <HiOutlineTrash />
+                        <HiOutlineTrash className="text-xl" />
                         move to trash
                       </button>
                     </div>
@@ -298,21 +298,22 @@ export default function ProjectsPage() {
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <HiOutlineCalendar className="text-gray-400" />
                 <span>
+                  
                   {project.startDate ? (
-                    <ShortMonthDate date={project.startDate} />
+                    <ShortMonthDate className=" font-bold" date={project.startDate} />
                   ) : (
                     "N/A"
                   )}{" "}
                   -{" "}
                   {project.endDate ? (
-                    <ShortMonthDate date={project.endDate} />
+                    <ShortMonthDate className="font-bold " date={project.endDate} />
                   ) : (
                     "N/A"
                   )}
                 </span>
               </div>
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">Manager:</span>{" "}
+              <div className="text-sm font-semibold text-gray-600">
+                <span className="font-bold text-[#04567B] text-[15px]">Manager:</span>{" "}
                 {project?.manager?.personalDetails?.firstName || "----"}{" "}
                 {project?.manager?.personalDetails?.lastName}
               </div>

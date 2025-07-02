@@ -28,6 +28,7 @@ import EditProjectModal from "@/components/modals/projects/EditProjectModal";
 import { useUpdateProjectMutation } from "@/store/api";
 import { toast } from "react-toastify";
 import SuccessToast, { FailedToast } from "@/components/toasts/Notifications";
+import { useAppSelector } from "@/store/hooks";
 
 interface TaskType {
   id: string;
@@ -204,6 +205,7 @@ function normalizeTasks(tasks: any[] = []): TaskType[] {
 const Header = ({ projectData, onAddTask }: { projectData: any; onAddTask: () => void; }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [updateProject] = useUpdateProjectMutation();
+  const loggedUser=useAppSelector((state) => state.login.user);
   const router = useRouter();
   const handleUpdateProject=async(data:any)=>{
     try {
@@ -297,13 +299,17 @@ const Header = ({ projectData, onAddTask }: { projectData: any; onAddTask: () =>
         </div>
      
       </div>
-      <button
-      onClick={() => setShowEditModal(true)}
+      {loggedUser && (String(loggedUser.id) ===String(projectData.manager?._id)|| loggedUser.role ==="Admin") &&(
+        <button
+        onClick={() => setShowEditModal(true)}
+  
+          className="bg-white/20 absolute right-5 top-5    text-white text-sm px-3 py-2 cursor-pointer rounded-full items-baseline font-semibold  tracking-wider"
+        >
+          Edit Project
+        </button>
 
-        className="bg-white/20 absolute right-5 top-5    text-white text-sm px-3 py-2 cursor-pointer rounded-full items-baseline font-semibold  tracking-wider"
-      >
-        Edit Project
-      </button>
+      )}
+      
       {showEditModal && <EditProjectModal open={showEditModal} onClose={() => setShowEditModal(false)} project={projectData} onUpdate={handleUpdateProject}/>}
     </div>
   );}

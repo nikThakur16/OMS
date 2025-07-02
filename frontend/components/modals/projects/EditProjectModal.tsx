@@ -31,15 +31,12 @@ export default function EditProjectModal({
   project,
   onUpdate,
 }: EditProjectModalProps) {
-  const { data: users } = useGetAssignableUsersByProjectQuery(project?._id) as {
-    data?: User[];
-  };
+  const { data: allUsers, isLoading: usersLoading } = useGetUsersQuery();
   const { data: teams, refetch: refetchTeams } = useGetTeamsQuery();
   const { data: departments, refetch: refetchDepartments } =
     useGetDepartmentsQuery();
   const [createDepartment] = useCreateDepartmentMutation();
   const [createTeam] = useCreateTeamMutation();
-  const { data: allUsers, isLoading: usersLoading } = useGetUsersQuery();
 
   const [showDepartmentModal, setShowDepartmentModal] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
@@ -127,7 +124,7 @@ export default function EditProjectModal({
                 : teams || [];
 
               const filteredUsers =
-                users?.filter((user) => {
+                allUsers?.filter((user) => {
                   if (
                     selectedDepartment &&
                     user.personalDetails.department !== selectedDepartment

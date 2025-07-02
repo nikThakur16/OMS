@@ -63,7 +63,7 @@ useClickOutside(modalRef,onClose)
     <div
  
       className={`
-        fixed inset-0 z-50 flex items-center w-screen justify-end
+        fixed inset-0 z-50 flex items-center w-screen justify-end text-[#04567B]
         bg-black/40 backdrop-blur-sm
         transition-opacity duration-500
         ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
@@ -72,15 +72,15 @@ useClickOutside(modalRef,onClose)
       <div
          ref={modalRef} 
         className={`
-          bg-white rounded-xl shadow-xl h-screen  md:w-2/3 lg:w-1/2  w-1/2 flex flex-col
+          bg-white rounded-xl shadow-xl h-screen  md:w-2/3 lg:w-1/2  w-1/2 flex flex-col text-[#04567B]
           transform transition-transform duration-500 ease-in-out
           ${open ? 'translate-x-0' : 'translate-x-full'}
         `}
       >
-        <div className="flex justify-between items-center p-6 border-b bg-gray-50 rounded-t-xl">
-          <h2 className="text-xl font-bold text-gray-800">Edit Task</h2>
+        <div className="flex justify-between items-center px-6 py-3 border-b bg-gray-50 rounded-t-xl">
+          <h2 className="text-xl font-bold ">Edit Task</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-            <HiX className="w-6 h-6 text-gray-600" />
+            <HiX className="w-6 h-6 " />
           </button>
         </div>
 
@@ -110,12 +110,13 @@ useClickOutside(modalRef,onClose)
           }}
         >
           {({ values, setFieldValue, errors, touched }) => (
-            <Form className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-600">Title</label>
+            <Form className="flex flex-col overflow-y-auto h-screen justify-between">
+          <div className=' px-6 py-4 space-y-6'>
+          <div>
+                <label className="block text-md font-bold ">Title</label>
                 <Field
                   name="title"
-                  className="w-full p-2 mt-1 border rounded-md"
+                  className="w-full p-2 mt-1 font-semibold bg-[#D3E7F0] border border-none  rounded-md"
                 />
                 {errors.title && touched.title && (
                   <div className="text-red-500 text-xs mt-1">{errors.title}</div>
@@ -123,19 +124,19 @@ useClickOutside(modalRef,onClose)
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-600">Description</label>
+                <label className="block text-sm font-bold">Description</label>
                 <Field
                   as="textarea"
                   name="description"
                   rows={5}
-                  className="w-full p-2 mt-1 border rounded-md resize-none"
+                  className="w-full p-2 mt-1  font-semibold border border-none bg-[#D3E7F0]  rounded-md resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600">Status</label>
-                  <Field as="select" name="status" className="w-full p-2 mt-1 border rounded-md">
+                  <label className="block text-sm font-bold">Status</label>
+                  <Field as="select" name="status" className="w-full p-2 bg-[#D3E7F0] font-semibold  mt-1 border rounded-md">
                     {statusOptions.map((status) => (
                       <option key={status} value={status}>{status}</option>
                     ))}
@@ -143,8 +144,8 @@ useClickOutside(modalRef,onClose)
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600">Priority</label>
-                  <Field as="select" name="priority" className="w-full p-2 mt-1 border rounded-md">
+                  <label className="block text-sm font-bold">Priority</label>
+                  <Field as="select" name="priority" className="w-full p-2 mt-1 bg-[#D3E7F0] font-semibold  border rounded-md">
                     {priorityOptions.map((priority) => (
                       <option key={priority} value={priority}>{priority}</option>
                     ))}
@@ -153,13 +154,13 @@ useClickOutside(modalRef,onClose)
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-600">Assignees</label>
+                <label className="block text-sm font-bold ">Assignees</label>
                 <Select
                   isMulti
                   name="assignedTo"
                   options={assigneeOptions}
-                  className="mt-1"
-                  classNamePrefix="select"
+                  className="mt-1 bg-[#D3E7F0] "
+                  classNamePrefix="select "
                   value={assigneeOptions.filter(option => values.assignedTo.includes(option.value))}
                   onChange={(selectedOptions) => {
                     const selectedIds = selectedOptions ? selectedOptions.map(option => option.value) : [];
@@ -175,32 +176,33 @@ useClickOutside(modalRef,onClose)
                     }),
                     multiValue: (base) => ({
                       ...base,
-                      backgroundColor: '#e0e7ff',
+                      backgroundColor: '#D3E7F0',
                     }),
                   }}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-600">Due Date</label>
+                <label className="block text-sm font-bold">Due Date</label>
                 <Field
                   type="date"
                   name="dueDate"
-                  className="w-full p-2 mt-1 border rounded-md"
+                  className="w-full p-2 mt-1 border bg-[#D3E7F0]  rounded-md"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-600">Tags (comma separated)</label>
+                <label className="block text-sm font-bold ">Tags (comma separated)</label>
                 <Field
                   name="tagsInput"
                   value={values.tags.join(', ')}
                   onChange={(e) => setFieldValue('tags', e.target.value.split(',').map((tag: string) => tag.trim()))}
-                  className="w-full p-2 mt-1 border rounded-md"
+                  className="w-full p-2 mt-1 border bg-[#D3E7F0]  rounded-md"
                 />
               </div>
+          </div>
 
-              <div className="border-t pt-4 flex justify-end gap-2 bg-white">
+              <div className=" pt-4 flex justify-between px-8 py-2  bg-white">
                 <button
                   type="button"
                   onClick={onClose}
@@ -210,7 +212,7 @@ useClickOutside(modalRef,onClose)
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 rounded text-white hover:bg-blue-700"
+                  className="px-4 py-2 bg-[#04567B] rounded text-white  font-semibold"
                 >
                   Save Changes
                 </button>

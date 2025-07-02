@@ -135,4 +135,52 @@ export const Hr = [
   },
 ];
 
+export const Manager = [
+  {
+    title: "Dashboard",
+    icon: "dashboard",
+    path: "/manager/dashboard",
+  },
+  {
+    title: "Employees",
+    icon: "employees",
+    path: "/manager/employees",
+  },
+  {
+    title: "Attendance",
+    icon: "attendance",
+    path: "/manager/attendance",
+  },
+  {
+    title: "Departments",
+    icon: "departments",
+    path: "/manager/departments",
+  },
+  {
+    title: "Roles",
+    icon: "roles",
+    path: "/manager/roles",
+  },
+  {
+    title: "Permissions",
+    icon: "permissions",
+    path: "/manager/permissions",
+  },
+  {
+    title: "Projects",
+    icon: "projects",
+    path: "/manager/projects",
+  },
+  {
+    title: "Teams",
+    icon: "teams",
+    path: "/manager/teams",
+  },
+  {
+    title: "Employees Management",
+    icon: "employeesManagement",
+    path: "/manager/register",
+  },
+];
+
 

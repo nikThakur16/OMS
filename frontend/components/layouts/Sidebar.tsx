@@ -1,19 +1,12 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Admin ,Employee, Hr } from '@/config/sidenav/page'
+import { Admin, Employee, Hr, Manager } from '@/config/sidenav/page'
 import { useRouter, usePathname } from 'next/navigation'
-import { HiOutlinePlus, HiChevronLeft, HiChevronRight, HiChevronDown } from 'react-icons/hi'
+import {  HiChevronLeft, HiChevronRight } from 'react-icons/hi'
 import { useAppSelector } from '@/store/hooks'
-import Link from 'next/link'
-import { useGetProjectsQuery } from '@/store/api'
 
-// Dummy projects data for sidebar
-const dummyProjects = [
-  { id: '1', name: 'Zira Project' },
-  { id: '2', name: 'E-commerce Platform' },
-  { id: '3', name: 'Mobile App Development' },
-];
+import { useGetProjectsQuery } from '@/store/api'
 
 const getColor = (index: number) => {
   const colors = [
@@ -60,8 +53,8 @@ const Sidebar = () => {
   const data: { [key: string]: typeof Admin } = {
     Admin: Admin,
     Employee: Employee,
-    Hr: Hr,
-    Manager: Admin, // If you have a Manager config, use it; otherwise, fallback to Admin
+    HR: Hr,
+    Manager: Manager, // If you have a Manager config, use it; otherwise, fallback to Admin
   };
 
   // Helper to check if a path is active
@@ -122,18 +115,20 @@ const Sidebar = () => {
                 {/* Sub-navigation for projects */}
                 {showProjects && !collapsed && (
                   <div className='ml-8 flex flex-col gap-2'>
-                    {projects && projects.length > 0 ? projects.map((proj, i) => (
-                      proj && proj._id && proj.name ? (
-                        <div
-                          key={proj._id}
-                          className={`flex items-center  gap-2 cursor-pointer px-2 py-1 rounded-lg transition ${isProjectActive(proj._id) ? 'bg-white/30 text-white font-bold' : 'hover:bg-white/10 text-white/90'}`}
-                          onClick={() => router.push(`/${role.toLowerCase()}/projects/${proj._id}`)}
-                        >
-                          <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${getColor(i)}`}>{proj.name[0]}</span>
-                          <span>{proj.name}</span>
-                        </div>
-                      ) : null
-                    )) : <span className='text-gray-400 px-2'>No projects</span>}
+                    {projects && projects.length > 0 ? projects
+                      .filter(proj => !proj.deletedAt)
+                      .map((proj, i) => (
+                        proj && proj._id && proj.name ? (
+                          <div
+                            key={proj._id}
+                            className={`flex items-center  gap-2 cursor-pointer px-2 py-1 rounded-lg transition ${isProjectActive(proj._id) ? 'bg-white/30 text-white font-bold' : 'hover:bg-white/10 text-white/90'}`}
+                            onClick={() => router.push(`/${role.toLowerCase()}/projects/${proj._id}`)}
+                          >
+                            <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${getColor(i)}`}>{proj.name[0]}</span>
+                            <span>{proj.name}</span>
+                          </div>
+                        ) : null
+                      )) : <span className='text-gray-400 px-2'>No projects</span>}
                   </div>
                 )}
               </div>
