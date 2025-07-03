@@ -14,6 +14,10 @@ const projectRoutes = require("./routes/projectRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const departmentRoutes = require("./routes/departmentRoutes");
 const statusRoutes = require('./routes/statusRoutes');
+const Message = require("./models/Message");
+const Chat = require("./models/Chat");
+const chatRoutes = require("./routes/chatRoutes");
+const chatUserDirectoryRoutes = require("./routes/chatRoutes");
 
 app.use(cookieParser());
 
@@ -41,7 +45,8 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use('/api/statuses', statusRoutes);
-app
+app.use("/api/chats", chatRoutes);
+app.use("/api/chat-user-directory", chatUserDirectoryRoutes);
 
 // Connect to MongoDB
 mongoose
@@ -55,14 +60,42 @@ app.get("/", (req, res) => {
 
 // --- Socket.IO integration ---
 const server = http.createServer(app);
-const io = require("socket.io")(server, { cors: { origin: "*" } });
+const io = require("socket.io")(server, {
+  cors: {
+    origin: "http://localhost:3000", // <-- your frontend's URL
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 app.set("io", io);
 
 io.on("connection", (socket) => {
-
-  socket.on("disconnect", () => {
-  
+  socket.on("join_chat", (chatId) => {
+    socket.join(chatId);
   });
+
+  socket.on("send_message", async (data) => {
+    // Save message to DB
+    const message = await Message.create({
+      chat: data.chatId,
+      sender: data.sender,
+      content: data.content,
+    });
+    // Optionally update lastMessage in Chat
+    await Chat.findByIdAndUpdate(data.chatId, { lastMessage: message._id });
+
+    // Populate sender for frontend display (optional)
+    const populatedMsg = await message.populate("sender", "personalDetails.firstName personalDetails.lastName");
+
+    io.to(data.chatId).emit("receive_message", {
+      ...data,
+      _id: message._id,
+      createdAt: message.createdAt,
+      sender: populatedMsg.sender, // send sender details
+    });
+  });
+
+  socket.on("disconnect", () => {});
 });
 
 server.listen(PORT, () => {

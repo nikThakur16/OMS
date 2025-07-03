@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const jwtSecret = process.env.JWT_SECRET;
-const publicPaths = ['/', '/register', '/forgot-password', '/404'];
+const publicPaths = ['/', '/register', '/forgot-password', '/404','/chat'];
 const allowedRoles = ['admin', 'hr', 'manager', 'employee'];
 
 export async function middleware(req: NextRequest) {

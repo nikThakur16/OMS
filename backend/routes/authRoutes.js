@@ -4,7 +4,7 @@ const { register, getAllUsers, login, logout, forgotPassword, resetPassword } = 
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.post('/register', register);
-router.get('/users', protect, authorize('Admin'), getAllUsers);
+router.get('/users', protect, authorize(['Admin','Employee']), getAllUsers);
 router.post('/login', login);
 router.post('/logout', logout);
 router.post('/forgot-password', forgotPassword);

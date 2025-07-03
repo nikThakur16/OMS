@@ -347,6 +347,28 @@ export const api = createApi({
       query: (projectId) => `api/projects/${projectId}/assignable-users`,
       providesTags: (result, error, projectId) => [{ type: 'Users', id: `assignable-${projectId}` }],
     }),
+
+    // chat module
+    getChatUserDirectory:builder.query<User[],void>({
+      query:()=>({
+        url: "api/chat-user-directory",
+        method: "GET",
+        providesTags:["Users"]
+      })
+
+    }),
+
+    getOrCreateOneToOneChat: builder.mutation<{ _id: string }, { userId1: string, userId2: string }>({
+      query: ({ userId1, userId2 }) => ({
+        url: "api/chats/one-to-one",
+        method: "POST",
+        body: { userId1, userId2 },
+      }),
+    }),
+
+    getChatMessages: builder.query<any[], string>({
+      query: (chatId) => `api/chats/${chatId}/messages`,
+    }),
   }),
 });
 
@@ -388,4 +410,7 @@ export const {
   useDeleteProjectMutation,
   useRestoreProjectMutation,
   useHardDeleteProjectMutation,
+  useGetOrCreateOneToOneChatMutation,
+  useGetChatMessagesQuery,
+  useGetChatUserDirectoryQuery,
 } = api;

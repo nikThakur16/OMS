@@ -21,7 +21,7 @@ import {
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-import React, { useState } from "react";
+import React, { useState, } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   LineChart,
@@ -40,6 +40,8 @@ import {
 } from "@/store/api";
 import { formatToUserTimeZone } from "@/utils/time/Time&Date";
 import AnnoucementsCard from "@/components/annoucements/AnnoucementsCard";
+import { useGetUsersQuery, useGetOrCreateOneToOneChatMutation,useGetChatUserDirectoryQuery, useGetChatMessagesQuery } from "@/store/api";
+import ChatBox from "@/components/chat/ChatBox";
 
 type Announcement = {
   title: string;
@@ -47,6 +49,11 @@ type Announcement = {
   targetRoles: string[];
   // add other fields as needed
 };
+interface Message {
+  sender: string;
+  content: string;
+  chatId: string;
+}
 
 const EmployeeDashboard = () => {
   const loggedUser = useAppSelector((state) => state?.login?.user);
@@ -321,6 +328,23 @@ const EmployeeDashboard = () => {
     refetchAnnouncements();
   };
 
+  const user = useAppSelector((state: any) => state.login.user);
+
+  const { data: users = [] } = useGetChatUserDirectoryQuery();
+  const [selectedFriend, setSelectedFriend] = useState<any>(null);
+  const [chatId, setChatId] = useState<string>("");
+
+  const [getOrCreateChat] = useGetOrCreateOneToOneChatMutation();
+  const { data: messages = [], refetch } = useGetChatMessagesQuery(chatId, { skip: !chatId });
+
+  useEffect(() => {
+    if (!selectedFriend || !user?.id) return;
+    getOrCreateChat({ userId1: user.id, userId2: selectedFriend._id })
+      .then(res => {
+        if (res?.data?._id) setChatId(res.data._id);
+      });
+  }, [selectedFriend, user, getOrCreateChat]);
+
   useEffect(() => {
     socket.on("new-announcement", handleNewAnnouncement);
     return () => {
@@ -346,7 +370,9 @@ const EmployeeDashboard = () => {
     socket.on("announcementDeleted", () => {
       refetchAnnouncements();
     });
-    return () => socket.off("announcementDeleted");
+    return () => {
+      socket.off("announcementDeleted");
+    };
   }, []);
 
   return (
@@ -631,18 +657,18 @@ const EmployeeDashboard = () => {
             Team Connectivity
           </h3>
           <div className="space-y-4 max-h-64 overflow-y-auto scrollbar-hide">
-            {teamMembers.map((member) => (
+            {users.filter(u => u._id !== user?.id).map((member) => (
               <div
-                key={member.id}
+                key={member._id}
                 className="flex items-center space-x-4 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0"
               >
                 <div className="relative flex-shrink-0">
                   <img
-                    src={member.avatar}
-                    alt={member.name}
+                    src="/images/cat.jpg"
+                    alt={member?.personalDetails?.firstName || "User Avatar"}
                     className="w-12 h-12 rounded-full object-cover transform transition-transform hover:scale-110 duration-200"
                   />
-                  {member.status === "online" && (
+                  {/* {member.status === "online" && (
                     <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse"></span>
                   )}
                   {member.status === "away" && (
@@ -650,15 +676,15 @@ const EmployeeDashboard = () => {
                   )}
                   {member.status === "offline" && (
                     <span className="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 rounded-full border-2 border-white"></span>
-                  )}
+                  )} */}
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-800">{member.name}</p>
+                  <p className="font-semibold text-gray-800">{member?.personalDetails.firstName }  {member?.personalDetails?.lastName}</p>
                   <p className="text-sm text-gray-500 capitalize">
-                    {member.status}
+                online
                   </p>
                 </div>
-                <button className="ml-auto bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-md hover:bg-blue-200 transition-colors duration-200">
+                <button onClick={()=>  setSelectedFriend(member)} className="ml-auto bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-md hover:bg-blue-200 transition-colors duration-200">
                   Message
                 </button>
               </div>
@@ -810,39 +836,7 @@ const EmployeeDashboard = () => {
         {/* Company Announcements (Retained & Enhanced) */}
         <AnnoucementsCard />
       </div>
-      <button
-        onClick={() => {
-          toast.dismiss(); // Close any open toasts
-          const testAnnouncement = {
-            title: "Test Announcement",
-            message: "This is a test notification ",
-            createdBy: { role: "HR" }, // Change role to "HR" or "Employee" to test other toasts
-          };
-
-          if (loggedUser?.role === "Admin") {
-            toast((props) => (
-              <AdminAnnouncementToast
-                {...props}
-                announcement={testAnnouncement}
-              />
-            ));
-          } else if (loggedUser?.role === "HR") {
-            toast((props) => (
-              <HRAnnouncementToast {...props} announcement={testAnnouncement} />
-            ));
-          } else {
-            toast((props) => (
-              <EmployeeAnnouncementToast
-                {...props}
-                announcement={testAnnouncement}
-              />
-            ));
-          }
-        }}
-        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-      >
-        Show Test Toast
-      </button>
+     
     </div>
   );
 };

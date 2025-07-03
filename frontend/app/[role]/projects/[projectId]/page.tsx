@@ -287,12 +287,12 @@ const Header = ({ projectData, onAddTask }: { projectData: any; onAddTask: () =>
           {projectData.customFields && projectData.customFields.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {projectData.customFields.map((field: any) => (
-                <span
+                <div
                   key={field.name}
-                  className="bg-white/20 text-white text-xs px-3 py-1 rounded-full"
+                  className=" text-white text-sm rounded-full"
                 >
-                  {field.name}: {projectData.customFieldValues?.[field.name] || "N/A"}
-                </span>
+                 <span className=" "> {field.name}</span>: <span className="font-bold">{projectData.customFieldValues?.[field.name] || "N/A"}</span>
+                </div>
               ))}
             </div>
           )}
@@ -523,12 +523,12 @@ const TaskList = ({ tasks, users, onView, onEdit, onDelete }: { tasks: TaskType[
                 </div>
               </td>
               <td>
-                <button
+                {/* <button
                 onClick={() => onView(task)}
                   className="text-gray-400 hover:text-blue-600 mx-1"
                 >
                   <HiOutlineEye />
-                </button>
+                </button> */}
                 <button
                 onClick={() => onEdit(task)}
                   className="text-gray-400 hover:text-green-600 mx-1"
