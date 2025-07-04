@@ -22,9 +22,9 @@ export const Admin = [
     path: "/admin/departments",
   },
   {
-    title: "Roles",
+    title: "Chat-Board",
     icon: "roles",
-    path: "/admin/roles",
+    path: "/admin/chat",
   },
   {
     title: "Permissions",
@@ -68,9 +68,9 @@ export const Employee = [
     path: "/employee/departments",
   },
   {
-    title: "Roles",
+    title: "Chat-Board",
     icon: "roles",
-    path: "/employee/roles",
+    path: "/employee/chat",
   },
   {
     title: "Permissions",
