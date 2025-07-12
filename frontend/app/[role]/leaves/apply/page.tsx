@@ -179,7 +179,7 @@ const ApplyLeavePage = () => {
             ) : (
               <div className="space-y-4">
                 {balanceData?.balance?.map((item: LeaveBalance, index: number) => {
-                  const usagePercentage = Math.round((item.used / item.total) * 100);
+                  const usagePercentage = Math.round((item.used / item.allocated) * 100);
                   return (
                     <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
                       <div className="flex justify-between items-center mb-2">
@@ -187,7 +187,7 @@ const ApplyLeavePage = () => {
                         <span className="text-2xl font-bold text-indigo-600">{item.remaining}</span>
                       </div>
                       <div className="text-sm text-gray-600 mb-3">
-                        {item.used} of {item.total} days used
+                        {item.used} of {item.allocated} days used
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 

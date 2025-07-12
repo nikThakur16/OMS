@@ -4,7 +4,7 @@ import { useGetLeaveBalanceQuery } from '@/store/api';
 
 interface LeaveBalance {
   type: string;
-  total: number;
+  allocated: number;
   used: number;
   remaining: number;
   leaveTypeId: string;
@@ -12,6 +12,7 @@ interface LeaveBalance {
 
 const LeaveBalancePage = () => {
   const { data, isLoading, error } = useGetLeaveBalanceQuery();
+  console.log(data);
 
   return (
     <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
@@ -40,11 +41,13 @@ const LeaveBalancePage = () => {
           </thead>
           <tbody>
               {data?.balance?.map((item: LeaveBalance, index: number) => {
-                const usagePercentage = Math.round((item.used / item.total) * 100);
+                const usagePercentage = Math.round((item.used / item.allocated) * 100);
+                console.log(item);
+                console.log(usagePercentage);
                 return (
                   <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition">
                     <td className="py-4 px-6 font-semibold text-gray-800">{item.type}</td>
-                    <td className="py-4 px-6 text-center">{item.total}</td>
+                    <td className="py-4 px-6 text-center">{item.allocated}</td>
                     <td className="py-4 px-6 text-center text-red-600 font-semibold">{item.used}</td>
                     <td className="py-4 px-6 text-center text-green-600 font-bold text-lg">{item.remaining}</td>
                     <td className="py-4 px-6 text-center">

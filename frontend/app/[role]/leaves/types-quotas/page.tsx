@@ -8,9 +8,9 @@ import {
   useCreateLeaveQuotaMutation,
   useGetLeaveQuotaMatrixQuery,
   useBulkImportLeaveQuotasMutation,
-  useSyncLeaveQuotasMutation
+  useSyncLeaveQuotasMutation,
+  useUpdateLeaveQuotaMutation
 } from '@/store/api';
-import { format } from 'date-fns';
 
 // Types
 interface LeaveType {
@@ -182,19 +182,29 @@ const AdminLeaveTypesQuotas = () => {
     }
   };
 
+  const [updateLeaveQuota] = useUpdateLeaveQuotaMutation();
+
   const handleUpdateQuota = async (e: React.FormEvent) => {
     e.preventDefault();
     setQuotaError('');
-    
     if (!editingQuota) return;
 
     try {
-      // This would need to be implemented in your backend
-      // For now, we'll just show a success message
-      alert('Quota updated successfully!');
+      // Find the quotaId from the matrix
+      const quota = matrix[editingQuota.userId]?.[editingQuota.leaveTypeId];
+      if (!quota || !quota._id) {
+        setQuotaError('Quota not found for this user and leave type.');
+        return;
+      }
+      await updateLeaveQuota({
+        id: quota._id,
+        allocated: quotaForm.allocated,
+        carriedOver: quotaForm.carriedOver
+      }).unwrap();
       setShowQuotaModal(null);
       setEditingQuota(null);
       setQuotaForm({ allocated: 0, carriedOver: 0 });
+      if (typeof matrixData?.refetch === 'function') matrixData.refetch();
     } catch (err: unknown) {
       const error = err as { data?: { message?: string } };
       setQuotaError(error?.data?.message || 'Failed to update quota');
@@ -401,8 +411,8 @@ const AdminLeaveTypesQuotas = () => {
                   setSyncMessage(res.message || 'Sync complete.');
                   if (typeof matrixData?.refetch === 'function') matrixData.refetch();
                   else window.location.reload();
-                } catch (err: any) {
-                  setSyncMessage(err?.data?.message || 'Sync failed.');
+                } catch (err: unknown) {
+                  setSyncMessage(err as string || 'Sync failed.');
                 }
               }}
               disabled={isSyncing}

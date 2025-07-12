@@ -294,7 +294,9 @@ export const api = createApi({
 
     // LEAVES
     getLeaveBalance: builder.query<any, void>({
+
       query: () => "/api/leaves/balance",
+        
       providesTags: ["Leaves"],
     }),
     getLeaveHistory: builder.query<any, void>({

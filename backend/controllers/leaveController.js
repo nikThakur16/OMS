@@ -13,16 +13,22 @@ const fs = require('fs');
 exports.getLeaveBalance = async (req, res) => {
   try {
     const userId = req.user._id;
-    const year = new Date().getFullYear();
-    const quotas = await LeaveQuota.find({ user: userId, year }).populate('leaveType');
-    const balance = quotas.map(q => ({
-      type: q.leaveType.name,
-      total: q.total,
-      used: q.used,
-      remaining: q.total - q.used,
-      leaveTypeId: q.leaveType._id
-    }));
-    res.json({ balance });
+    const quotas = await LeaveQuota.find({ user: userId }).populate('leaveType');
+    let totalLeaves = 0;
+    const balance = quotas.map(q => {
+      const allocated = q.allocated ?? 0;
+      const used = q.used ?? 0;
+      const remaining = allocated - used;
+      totalLeaves += remaining;
+      return {
+        type: q.leaveType?.name ?? 'Unknown',
+        allocated,
+        used,
+        remaining: allocated - used,
+        leaveTypeId: q.leaveType?._id ?? null
+      };
+    });
+    res.json({ balance, totalLeaves });
   } catch (err) {
     res.status(500).json({ message: 'Error fetching leave balance', error: err.message });
   }
@@ -115,28 +121,172 @@ exports.cancelLeave = async (req, res) => {
 exports.getAllLeaveRequests = async (req, res) => {
   try {
     const { status, user, leaveType, startDate, endDate, page = 1, limit = 20 } = req.query;
-    const filter = {};
-    if (status) filter.status = status;
-    if (user) filter.user = user;
-    if (leaveType) filter.leaveType = leaveType;
+    
+    // Build aggregation pipeline
+    const pipeline = [];
+    
+    // Add initial filters that don't require lookups
+    const initialMatchConditions = {};
+    if (status) initialMatchConditions.status = status;
+    if (leaveType) initialMatchConditions.leaveType = new mongoose.Types.ObjectId(leaveType);
+    
     if (startDate || endDate) {
-      filter.startDate = {};
-      if (startDate) filter.startDate.$gte = new Date(startDate);
-      if (endDate) filter.startDate.$lte = new Date(endDate);
+      initialMatchConditions.startDate = {};
+      if (startDate) initialMatchConditions.startDate.$gte = new Date(startDate);
+      if (endDate) initialMatchConditions.startDate.$lte = new Date(endDate);
     }
+    
+    // Handle user search by ID (for backward compatibility)
+    if (user && mongoose.Types.ObjectId.isValid(user)) {
+      initialMatchConditions.user = new mongoose.Types.ObjectId(user);
+    }
+    
+    if (Object.keys(initialMatchConditions).length > 0) {
+      pipeline.push({ $match: initialMatchConditions });
+    }
+    
+    // Lookup user details
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'userDetails'
+      }
+    });
+    
+    pipeline.push({
+      $unwind: {
+        path: '$userDetails',
+        preserveNullAndEmptyArrays: false
+      }
+    });
+    
+    // Handle user search by name/email (after user lookup)
+    if (user && !mongoose.Types.ObjectId.isValid(user)) {
+      const regex = new RegExp(user, 'i');
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'userDetails.personalDetails.firstName': regex },
+            { 'userDetails.personalDetails.lastName': regex },
+            { 'userDetails.contactDetails.email': regex }
+          ]
+        }
+      });
+    }
+    
+    // Lookup approver details
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'approver',
+        foreignField: '_id',
+        as: 'approverDetails'
+      }
+    });
+    
+    pipeline.push({
+      $unwind: {
+        path: '$approverDetails',
+        preserveNullAndEmptyArrays: true
+      }
+    });
+    
+    // Lookup leave type details
+    pipeline.push({
+      $lookup: {
+        from: 'leavetypes',
+        localField: 'leaveType',
+        foreignField: '_id',
+        as: 'leaveTypeDetails'
+      }
+    });
+    
+    pipeline.push({
+      $unwind: {
+        path: '$leaveTypeDetails',
+        preserveNullAndEmptyArrays: false
+      }
+    });
+
+    // Add sorting
+    pipeline.push({ $sort: { createdAt: -1 } });
+
+    // Get total count for pagination
+    const countPipeline = [...pipeline, { $count: 'total' }];
+    const countResult = await LeaveRequest.aggregate(countPipeline);
+    const total = countResult.length > 0 ? countResult[0].total : 0;
+
+    // Add pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const [results, total] = await Promise.all([
-      LeaveRequest.find(filter)
-        .populate('user', 'personalDetails.firstName personalDetails.lastName email')
-        .populate('leaveType', 'name')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit)),
-      LeaveRequest.countDocuments(filter)
-    ]);
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: parseInt(limit) });
+
+    // Project final structure
+    pipeline.push({
+      $project: {
+        _id: 1,
+        startDate: 1,
+        endDate: 1,
+        days: 1,
+        reason: 1,
+        status: 1,
+        isHalfDay: 1,
+        createdAt: 1,
+        user: {
+          _id: '$userDetails._id',
+          personalDetails: '$userDetails.personalDetails'
+        },
+        approver: {
+          _id: '$approverDetails._id',
+          personalDetails: '$approverDetails.personalDetails'
+        },
+        leaveType: {
+          _id: '$leaveTypeDetails._id',
+          name: '$leaveTypeDetails.name'
+        }
+      }
+    });
+
+    const results = await LeaveRequest.aggregate(pipeline);
+    
     res.json({ results, total, page: parseInt(page), limit: parseInt(limit) });
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching leave requests', error: err.message });
+    console.error('Error in getAllLeaveRequests:', err);
+    
+    // Fallback to simple query if aggregation fails
+    try {
+      console.log('Falling back to simple query...');
+      const filter = {};
+      if (status) filter.status = status;
+      if (leaveType) filter.leaveType = leaveType;
+      if (startDate || endDate) {
+        filter.startDate = {};
+        if (startDate) filter.startDate.$gte = new Date(startDate);
+        if (endDate) filter.startDate.$lte = new Date(endDate);
+      }
+      if (user && mongoose.Types.ObjectId.isValid(user)) {
+        filter.user = new mongoose.Types.ObjectId(user);
+      }
+      
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const [results, total] = await Promise.all([
+        LeaveRequest.find(filter)
+          .populate('user', 'personalDetails')
+          .populate('approver', 'personalDetails')
+          .populate('leaveType', 'name')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(parseInt(limit)),
+        LeaveRequest.countDocuments(filter)
+      ]);
+      
+      res.json({ results, total, page: parseInt(page), limit: parseInt(limit) });
+    } catch (fallbackErr) {
+      console.error('Fallback also failed:', fallbackErr);
+      res.status(500).json({ message: 'Error fetching leave requests', error: err.message });
+    }
   }
 };
 
@@ -160,6 +310,10 @@ exports.approveLeave = async (req, res) => {
       leave.comments.push({ by: approverId, text: comment, date: new Date() });
     }
     await leave.save();
+    const populatedLeave = await LeaveRequest.findById(leave._id)
+      .populate('approver', 'personalDetails.firstName personalDetails.lastName contactDetails.email')
+      .populate('user', 'personalDetails.firstName personalDetails.lastName contactDetails.email')
+      .populate('leaveType', 'name');
     // Update quota used
     const year = new Date(leave.startDate).getFullYear();
     const quotaUpdate = await LeaveQuota.findOneAndUpdate(
@@ -169,7 +323,7 @@ exports.approveLeave = async (req, res) => {
     if (!quotaUpdate) {
       return res.status(400).json({ message: 'No leave quota found for this user/type/year. Please set up leave quotas.' });
     }
-    res.json({ message: 'Leave request approved', leave });
+    res.json({ message: 'Leave request approved', leave: populatedLeave });
   } catch (err) {
     res.status(500).json({ message: 'Error approving leave', error: err.message });
   }
@@ -195,7 +349,11 @@ exports.rejectLeave = async (req, res) => {
       leave.comments.push({ by: approverId, text: comment, date: new Date() });
     }
     await leave.save();
-    res.json({ message: 'Leave request rejected', leave });
+    const populatedLeave = await LeaveRequest.findById(leave._id)
+      .populate('approver', 'personalDetails.firstName personalDetails.lastName contactDetails.email')
+      .populate('user', 'personalDetails.firstName personalDetails.lastName contactDetails.email')
+      .populate('leaveType', 'name');
+    res.json({ message: 'Leave request rejected', leave: populatedLeave });
   } catch (err) {
     res.status(500).json({ message: 'Error rejecting leave', error: err.message });
   }
@@ -228,7 +386,11 @@ exports.adminCancelLeave = async (req, res) => {
       leave.comments.push({ by: adminId, text: comment, date: new Date() });
     }
     await leave.save();
-    res.json({ message: 'Leave request cancelled by admin', leave });
+    const populatedLeave = await LeaveRequest.findById(leave._id)
+      .populate('approver', 'personalDetails.firstName personalDetails.lastName contactDetails.email')
+      .populate('user', 'personalDetails.firstName personalDetails.lastName contactDetails.email')
+      .populate('leaveType', 'name');
+    res.json({ message: 'Leave request cancelled by admin', leave: populatedLeave });
   } catch (err) {
     res.status(500).json({ message: 'Error cancelling leave', error: err.message });
   }
@@ -383,9 +545,8 @@ exports.deleteLeaveType = async (req, res) => {
     const { id } = req.params;
     const leaveType = await LeaveType.findById(id);
     if (!leaveType) return res.status(404).json({ message: 'Leave type not found' });
-    leaveType.isActive = false;
-    await leaveType.save();
-    res.json({ message: 'Leave type deleted (soft delete)', leaveType });
+    await LeaveType.deleteOne({ _id: id });
+    res.json({ message: 'Leave type permanently deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Error deleting leave type', error: err.message });
   }

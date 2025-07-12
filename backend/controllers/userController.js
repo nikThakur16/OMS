@@ -102,7 +102,7 @@ exports.searchUsers = async (req, res) => {
                 { 'personalDetails.lastName': regex },
                 { 'contactDetails.email': regex }
             ]
-        }).select('personalDetails.firstName personalDetails.lastName contactDetails.email');
+        }).select('_id personalDetails.firstName personalDetails.lastName contactDetails.email');
         res.json(users);
     } catch (error) {
         console.error('Error searching users:', error);

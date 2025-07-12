@@ -6,18 +6,34 @@ import {
   useApproveLeaveMutation,
   useRejectLeaveMutation,
   useAdminCancelLeaveMutation,
-  useSearchUsersQuery
+  useSearchUsersQuery,
+  useGetLeaveTypesQuery
 } from '@/store/api';
 import toast from 'react-hot-toast';
 import LeaveToast from '@/components/toasts/LeaveToast';
 import dayjs from 'dayjs';
 
 const LeaveManagementPage = () => {
-  const [filters, setFilters] = useState({ status: '', user: '', leaveType: '', startDate: '', endDate: '' });
+  const [filters, setFilters] = useState({ status: '', user: '',leaveType: '', startDate: '', endDate: '' });
   const [pendingFilters, setPendingFilters] = useState({ status: '', user: '', leaveType: '', startDate: '', endDate: '' });
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState('');
   const [userDropdown, setUserDropdown] = useState(false);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.user-search-container')) {
+        setUserDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   // Get user role from localStorage
   useEffect(() => {
@@ -29,6 +45,7 @@ const LeaveManagementPage = () => {
   const { data: allLeavesData, isLoading: allLeavesLoading, error: allLeavesError, refetch: refetchAllLeaves } = useGetAllLeaveRequestsQuery(filters, { skip: userRole !== 'admin' && userRole !== 'hr' });
   const { data: teamLeavesData, isLoading: teamLeavesLoading, error: teamLeavesError, refetch: refetchTeamLeaves } = useGetTeamLeaveRequestsQuery(filters, { skip: userRole !== 'manager' });
   const { data: userOptions, isLoading: userSearchLoading } = useSearchUsersQuery(userSearch, { skip: !userSearch || userRole === 'manager' });
+  const { data: leaveTypes } = useGetLeaveTypesQuery();
 
   // Use the appropriate data based on role
   const data = userRole === 'manager' ? teamLeavesData : allLeavesData;
@@ -43,6 +60,7 @@ const LeaveManagementPage = () => {
   const [actionError, setActionError] = useState<string | null>(null);
   const [commentModal, setCommentModal] = useState<{ id: string; action: 'approve' | 'reject' | 'cancel' } | null>(null);
   const [comment, setComment] = useState('');
+  const [reasonModal, setReasonModal] = useState<{ reason: string; userName: string } | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -52,6 +70,10 @@ const LeaveManagementPage = () => {
   const handleAction = (id: string, action: 'approve' | 'reject' | 'cancel') => {
     setComment('');
     setCommentModal({ id, action });
+  };
+
+  const handleViewReason = (reason: string, userName: string) => {
+    setReasonModal({ reason, userName });
   };
 
   const handleSubmitAction = async () => {
@@ -71,9 +93,12 @@ const LeaveManagementPage = () => {
       }
       refetch();
       setCommentModal(null);
-    } catch (err: any) {
-      setActionError(err?.data?.message || 'Failed to perform action');
-      toast.custom(<LeaveToast type="error" message={err?.data?.message || 'Failed to perform action'} />);
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'data' in err && err.data && typeof err.data === 'object' && 'message' in err.data 
+        ? String(err.data.message) 
+        : 'Failed to perform action';
+      setActionError(errorMessage);
+      toast.custom(<LeaveToast type="error" message={errorMessage} />);
     } finally {
       setActionId(null);
     }
@@ -102,19 +127,26 @@ const LeaveManagementPage = () => {
             <option value="">All</option>
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
+          
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
         {userRole !== 'manager' && (
-          <div className="relative">
+          <div className="relative user-search-container">
             <label className="block text-xs font-semibold mb-1">Employee (Name/Email)</label>
             <input
               type="text"
               value={userSearch}
               onChange={e => {
-                setUserSearch(e.target.value);
+                const value = e.target.value;
+                setUserSearch(value);
                 setUserDropdown(true);
+                // Allow direct typing for search
+                if (value.trim()) {
+                  setPendingFilters(prev => ({ ...prev, user: value }));
+                } else {
+                  setPendingFilters(prev => ({ ...prev, user: '' }));
+                }
               }}
               onFocus={() => setUserDropdown(true)}
               className="border rounded px-2 py-1 w-48"
@@ -131,7 +163,7 @@ const LeaveManagementPage = () => {
                       key={user._id}
                       className="p-2 hover:bg-indigo-50 cursor-pointer text-sm"
                       onClick={() => {
-                        setPendingFilters(prev => ({ ...prev, user: user._id }));
+                        setPendingFilters(prev => ({ ...prev, user: user.personalDetails.firstName + ' ' + user.personalDetails.lastName }));
                         setUserSearch(user.personalDetails.firstName + ' ' + user.personalDetails.lastName + ' (' + user.contactDetails.email + ')');
                         setUserDropdown(false);
                       }}
@@ -144,20 +176,24 @@ const LeaveManagementPage = () => {
                 )}
               </div>
             )}
-            {pendingFilters.user && (
-              <button
-                className="ml-2 text-xs text-red-500 underline"
-                onClick={() => {
-                  setPendingFilters(prev => ({ ...prev, user: '' }));
-                  setUserSearch('');
-                }}
-              >Clear</button>
-            )}
+          
           </div>
         )}
         <div>
           <label className="block text-xs font-semibold mb-1">Leave Type (ID)</label>
-          <input name="leaveType" value={pendingFilters.leaveType} onChange={handleChange} className="border rounded px-2 py-1" placeholder="Leave Type ID" />
+          <select
+            name="leaveType"
+            value={pendingFilters.leaveType}
+            onChange={handleChange}
+            className="border rounded px-2 py-1"
+          >
+            <option value="">All Types</option>
+            {leaveTypes?.types?.map((type: { _id: string; name: string }) => (
+              <option key={type._id} value={type._id}>
+                {type.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-semibold mb-1">Start Date</label>
@@ -168,7 +204,12 @@ const LeaveManagementPage = () => {
           <input type="date" name="endDate" value={pendingFilters.endDate} onChange={handleChange} className="border rounded px-2 py-1" />
         </div>
         <button className="ml-4 bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 transition font-semibold" onClick={() => setFilters(pendingFilters)}>Filter</button>
-        <button className="ml-2 bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 transition font-semibold" onClick={() => { setFilters({ status: '', user: '', leaveType: '', startDate: '', endDate: '' }); setPendingFilters({ status: '', user: '', leaveType: '', startDate: '', endDate: '' }); setUserSearch(''); }}>Clear All</button>
+        <button className="ml-2 bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 transition font-semibold" onClick={() => { 
+          setFilters({ status: '', user: '', leaveType: '', startDate: '', endDate: '' }); 
+          setPendingFilters({ status: '', user: '', leaveType: '', startDate: '', endDate: '' }); 
+          setUserSearch('');
+          setUserDropdown(false);
+        }}>Clear All</button>
       </div>
       <div className="bg-white rounded-xl shadow p-4 overflow-x-auto">
         {actionError && <div className="text-red-600 mb-2">{actionError}</div>}
@@ -195,16 +236,51 @@ const LeaveManagementPage = () => {
               {data?.results?.length === 0 ? (
                 <tr><td colSpan={9} className="text-center text-gray-400 py-4">No leave requests found.</td></tr>
               ) : (
-                data?.results?.map((req: any) => (
+                data?.results?.map((req: {
+                  _id: string;
+                  user?: {
+                    personalDetails?: {
+                      firstName?: string;
+                      lastName?: string;
+                    };
+                  };
+                  leaveType?: {
+                    name?: string;
+                  };
+                  startDate: string;
+                  endDate: string;
+                  days: number;
+                  status: string;
+                  reason?: string;
+                  createdAt: string;
+                  approver?: {
+                    personalDetails?: {
+                      firstName?: string;
+                      lastName?: string;
+                    };
+                  };
+                  isHalfDay?: boolean;
+                }) => (
                   <tr key={req._id} className="border-b border-gray-200 hover:bg-blue-50 transition text-center">
                     <td className="align-middle">{req.user?.personalDetails?.firstName} {req.user?.personalDetails?.lastName}</td>
                     <td className="align-middle">{req.leaveType?.name}</td>
                     <td className="align-middle">{req.isHalfDay ? `${dayjs(req.startDate).format('D MMM YYYY')} (Half Day)` : `${dayjs(req.startDate).format('D MMM YYYY')} - ${dayjs(req.endDate).format('D MMM YYYY')}`}</td>
                     <td className="align-middle">{req.days}</td>
                     <td className={`font-bold align-middle ${req.status === 'approved' ? 'text-green-600' : req.status === 'pending' ? 'text-yellow-600' : req.status === 'rejected' ? 'text-red-600' : 'text-gray-500'}`}>{req.status}</td>
-                    <td className="align-middle">{req.reason || '-'}</td>
+                    <td className="align-middle">
+                      {req.reason ? (
+                        <button
+                          className="text-blue-600 hover:text-blue-800 underline text-xs font-semibold"
+                          onClick={() => handleViewReason(req.reason!, `${req.user?.personalDetails?.firstName || ''} ${req.user?.personalDetails?.lastName || ''}`.trim())}
+                        >
+                          View Reason
+                        </button>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td className="align-middle">{dayjs(req.createdAt).format('D MMM YYYY')}</td>
-                    <td className="align-middle">{req.approver || '-'}</td>
+                    <td className="align-middle">{req.approver?.personalDetails?.firstName   || '-'} {req.approver?.personalDetails?.lastName || "-"}</td>
                     <td className="align-middle">
                       {req.status === 'pending' && (
                         <>
@@ -266,6 +342,39 @@ const LeaveManagementPage = () => {
                 onClick={() => setCommentModal(null)}
                 disabled={isApproving || isRejecting || isCancelling}
               >Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Reason Modal */}
+      {reasonModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 shadow-xl w-96 max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">Leave Reason</h3>
+              <button
+                onClick={() => setReasonModal(null)}
+                className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">
+                <span className="font-semibold">Employee:</span> {reasonModal.userName}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <p className="text-gray-800 whitespace-pre-wrap">{reasonModal.reason}</p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                className="bg-indigo-600 text-white px-4 py-2 rounded font-semibold hover:bg-indigo-700 transition"
+                onClick={() => setReasonModal(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

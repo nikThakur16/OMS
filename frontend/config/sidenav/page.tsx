@@ -44,30 +44,18 @@ export const Admin = [
     icon: "employeesManagement",
     path: "/admin/register",
   },
-  {
-    title: "Leave Management",
-    icon: "calendar",
-    tooltip: "View and manage all leave requests",
-    path: "/admin/leaves/management",
-  },
-  {
-    title: "Leave Reports",
-    icon: "barChart",
-    tooltip: "Leave statistics and reports",
-    path: "/admin/leaves/report",
-  },
-  {
-    title: "Leave Types & Quotas",
-    icon: "settings",
-    tooltip: "Manage leave types and quotas",
-    path: "/admin/leaves/types-quotas",
-  },
+ 
   {
     title: "Admin Tools",
     icon: "admin",
     tooltip: "Manage user roles and system settings",
     path: "/admin/admin-tools",
   },
+  {
+    title:"Leaves",
+    icon:"roles",
+    path:"/admin/leaves",
+  }
 ];
 
 export const Employee = [
@@ -108,23 +96,11 @@ export const Employee = [
     path: "/employee/teams",
   },
   {
-    title: "Apply for Leave",
-    icon: "calendar",
-    tooltip: "Submit a new leave request",
-    path: "/employee/leaves/apply",
-  },
-  {
-    title: "Leave Balance",
-    icon: "pieChart",
-    tooltip: "View your leave balance",
-    path: "/employee/leaves/balance",
-  },
-  {
-    title: "Leave History",
-    icon: "history",
-    tooltip: "See your leave request history",
-    path: "/employee/leaves/history",
-  },
+    title:"Leaves",
+    icon:"roles",
+    path:"/employee/leaves",
+  }
+  
 ];
 
 export const Hr = [
@@ -171,23 +147,10 @@ export const Hr = [
     path: "/hr/register",
   },
   {
-    title: "Leave Management",
-    icon: "calendar",
-    tooltip: "View and manage all leave requests",
-    path: "/hr/leaves/management",
-  },
-  {
-    title: "Leave Reports",
-    icon: "barChart",
-    tooltip: "Leave statistics and reports",
-    path: "/hr/leaves/report",
-  },
-  {
-    title: "Leave Types & Quotas",
-    icon: "settings",
-    tooltip: "Manage leave types and quotas",
-    path: "/hr/leaves/types-quotas",
-  },
+    title:"Leaves",
+    icon:"roles",
+    path:"/hr/leaves",
+  }
 ];
 
 export const Manager = [
@@ -225,26 +188,13 @@ export const Manager = [
     title: "Team Leaves",
     icon: "calendar",
     tooltip: "View and manage team leave requests",
-    path: "/manager/leaves/management",
+    path: "/manager/my-activity/management",
   },
   {
-    title: "Apply for Leave",
-    icon: "calendar",
-    tooltip: "Submit a new leave request",
-    path: "/manager/leaves/apply",
-  },
-  {
-    title: "Leave Balance",
-    icon: "pieChart",
-    tooltip: "View your leave balance",
-    path: "/manager/leaves/balance",
-  },
-  {
-    title: "Leave History",
-    icon: "history",
-    tooltip: "See your leave request history",
-    path: "/manager/leaves/history",
-  },
+    title:"Leaves",
+    icon:"roles",
+    path:"/manager/leaves",
+  }
 ];
 
 
