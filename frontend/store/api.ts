@@ -36,7 +36,16 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ["Users", "Attendance", "Announcements", "Tasks", "Projects", "Teams", "Departments"],
+  tagTypes: [
+    "Users",
+    "Attendance",
+    "Announcements",
+    "Tasks",
+    "Projects",
+    "Teams",
+    "Departments",
+    "ChatMessages"
+  ],
 
   endpoints: (builder) => ({
     // USERS
@@ -363,11 +372,17 @@ export const api = createApi({
         url: "api/chats/one-to-one",
         method: "POST",
         body: { userId1, userId2 },
+        providesTags: (result, error, { userId1, userId2 }) => [
+          { type: "ChatMessages", id: `${userId1}-${userId2}` },
+          { type: "ChatMessages", id: `${userId2}-${userId1}` },
+        ],
+
       }),
     }),
 
     getChatMessages: builder.query<any[], string>({
       query: (chatId) => `api/chats/${chatId}/messages`,
+      providesTags: (result, error, chatId) => [{ type: "ChatMessages", id: chatId }],
     }),
   }),
 });

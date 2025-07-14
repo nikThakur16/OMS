@@ -1,7 +1,7 @@
 const express = require("express");
 const chatController = require("../controllers/chatController");
 const router = express.Router();
-
+const {protect} = require("../middleware/authMiddleware")
 
 // Get or create a one-to-one chat
 router.post("/one-to-one", chatController.getOrCreateOneToOneChat);
@@ -10,7 +10,7 @@ router.post("/one-to-one", chatController.getOrCreateOneToOneChat);
 router.get("/:chatId/messages", chatController.getMessages);
 
 
-router.get("/", chatController.getAllChatUsers );
+router.get("/", protect, chatController.getAllChatUsers );
   
 
 module.exports = router;

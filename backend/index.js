@@ -16,6 +16,7 @@ const departmentRoutes = require("./routes/departmentRoutes");
 const statusRoutes = require('./routes/statusRoutes');
 const Message = require("./models/Message");
 const Chat = require("./models/Chat");
+const User = require("./models/User"); // <-- Add this line
 const chatRoutes = require("./routes/chatRoutes");
 const chatUserDirectoryRoutes = require("./routes/chatRoutes");
 
@@ -69,33 +70,105 @@ const io = require("socket.io")(server, {
 });
 app.set("io", io);
 
+const onlineUsers = new Map(); // userId -> socket.id
+
+// Track users in rooms
+const usersInRooms = {}; // { chatId: Set of userIds }
+
 io.on("connection", (socket) => {
-  socket.on("join_chat", (chatId) => {
+  // When a user comes online
+  socket.on("user_online", (userId) => {
+    onlineUsers.set(userId, socket.id);
+    socket.userId = userId;
+    io.emit("user_online", userId);
+  });
+
+  // When a user joins a chat
+  socket.on("join_chat", (chatId, userId) => {
     socket.join(chatId);
+    if (!usersInRooms[chatId]) usersInRooms[chatId] = new Set();
+    usersInRooms[chatId].add(userId);
+    socket.chatId = chatId;
+    socket.userId = userId;
   });
 
+  // When a user leaves a chat (optional, for cleanup)
+  socket.on("leave_chat", (chatId, userId) => {
+    socket.leave(chatId);
+    if (usersInRooms[chatId]) usersInRooms[chatId].delete(userId);
+  });
+
+  // When sending a message
   socket.on("send_message", async (data) => {
-    // Save message to DB
-    const message = await Message.create({
-      chat: data.chatId,
-      sender: data.sender,
-      content: data.content,
-    });
-    // Optionally update lastMessage in Chat
-    await Chat.findByIdAndUpdate(data.chatId, { lastMessage: message._id });
+    try {
+      const message = await Message.create({
+        chat: data.chatId,
+        sender: data.sender,
+        content: data.content,
+        status: "sent",
+        seenBy: [],
+      });
+      await Chat.findByIdAndUpdate(data.chatId, { lastMessage: message._id });
 
-    // Populate sender for frontend display (optional)
-    const populatedMsg = await message.populate("sender", "personalDetails.firstName personalDetails.lastName");
+      const populatedMsg = await message.populate("sender", "personalDetails.firstName personalDetails.lastName");
 
-    io.to(data.chatId).emit("receive_message", {
-      ...data,
-      _id: message._id,
-      createdAt: message.createdAt,
-      sender: populatedMsg.sender, // send sender details
-    });
+      // Find chat and recipient
+      const chat = await Chat.findById(data.chatId).lean();
+      const recipientId = chat.members.find(id => id.toString() !== data.sender);
+
+      // Emit to sender: status "sent"
+      io.to(socket.id).emit("newMessage", {
+        ...data,
+        _id: message._id,
+        createdAt: message.createdAt,
+        sender: populatedMsg.sender,
+        status: "sent",
+      });
+
+      // Emit to recipient: status "delivered" (if online in room)
+      if (
+        usersInRooms[data.chatId] &&
+        usersInRooms[data.chatId].has(recipientId.toString())
+      ) {
+        const recipientSocketId = onlineUsers.get(recipientId.toString());
+        if (recipientSocketId) {
+          io.to(recipientSocketId).emit("newMessage", {
+            ...data,
+            _id: message._id,
+            createdAt: message.createdAt,
+            sender: populatedMsg.sender,
+            status: "delivered",
+          });
+          // Also notify sender that message is delivered
+          io.to(socket.id).emit("message_delivered", { messageId: message._id });
+        }
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
   });
 
-  socket.on("disconnect", () => {});
+  // When a message is seen
+  socket.on("message_seen", async ({ chatId, messageId, userId }) => {
+    await Message.findByIdAndUpdate(messageId, {
+      $addToSet: { seenBy: userId },
+      status: "seen",
+    });
+    io.to(chatId).emit("message_seen", { messageId, userId });
+  });
+
+  // On disconnect, clean up
+  socket.on("disconnect", async () => {
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+      // Remove from all rooms
+      Object.keys(usersInRooms).forEach(chatId => {
+        usersInRooms[chatId].delete(socket.userId);
+      });
+      await User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() });
+      io.emit("user_offline", socket.userId);
+    }
+  });
 });
 
 server.listen(PORT, () => {

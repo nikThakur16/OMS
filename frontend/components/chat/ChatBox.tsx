@@ -1,52 +1,162 @@
 import { useEffect, useState, useRef } from "react";
 import socket from "@/utils/socket";
 import { formatToUserTimeZone } from "@/utils/time/Time&Date";
+import { formatLastSeen } from "@/utils/time/lastSeenFormatter";
 
 export default function ChatBox({
   chatId,
   userId,
   messages,
   name,
+  isOnline,
+  lastSeen,
   onClick
 }: {
   chatId: string;
   userId: string;
   messages: any[];
   name: string;
+  isOnline: boolean;
+  lastSeen?: string | Date;
   onClick?: () => void;
 }) {
-  const [realtimeMessages, setRealtimeMessages] = useState<any[]>([]);
+  const [localMessages, setLocalMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
-  useEffect(() => {
-    setRealtimeMessages([]); // Clear on chat change
-    socket.emit("join_chat", chatId);
-    socket.on("receive_message", (msg) => {
-      setRealtimeMessages((prev) => [...prev, msg]);
-    });
-    return () => {
-      socket.emit("leave_chat", chatId);
-      socket.off("receive_message");
-    };
-  }, [chatId]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, realtimeMessages]);
-
+  // 1. Send message (optimistic, one gray tick)
   const sendMessage = () => {
     if (!input.trim()) return;
+    const tempId = "temp-" + Date.now();
     const msg = {
+      _id: tempId,
       chatId,
       sender: userId,
       content: input,
+      createdAt: new Date().toISOString(),
+      status: "sent"
     };
+    setLocalMessages((prev) => [...prev, msg]);
     socket.emit("send_message", msg);
     setInput("");
   };
 
-  const allMessages = [...messages, ...realtimeMessages];
+  // 2. Listen for newMessage, message_delivered, message_seen
+  useEffect(() => {
+    // Clear local messages on chat change
+    setLocalMessages([]);
+
+    // Join chat room
+    socket.emit("join_chat", chatId, userId);
+
+    // When a new message is received (from anyone)
+    function handleNewMessage(msg) {
+      setLocalMessages((prev) => {
+        // If this is my own message (optimistic), update its _id and status
+        if (msg.sender === userId || msg.sender?._id === userId) {
+          // Find the temp message
+          const idx = prev.findIndex(
+            (m) =>
+              m.content === msg.content &&
+              m.sender === userId &&
+              m.status === "sent"
+          );
+          if (idx !== -1) {
+            // Replace temp message with real one, set status to delivered
+            const updated = [...prev];
+            updated[idx] = { ...msg, status: "delivered" };
+            return updated;
+          }
+        }
+        // Otherwise, just add the message (from others)
+        return [...prev, { ...msg, status: "delivered" }];
+      });
+    }
+
+    // When message is delivered (double gray tick)
+    function handleDelivered({ messageId }) {
+      setLocalMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId ? { ...msg, status: "delivered" } : msg
+        )
+      );
+    }
+
+    // When message is seen (double white tick)
+    function handleSeen({ messageId }) {
+      setLocalMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId ? { ...msg, status: "seen" } : msg
+        )
+      );
+    }
+
+    socket.on("newMessage", handleNewMessage);
+    socket.on("message_delivered", handleDelivered);
+    socket.on("message_seen", handleSeen);
+
+    return () => {
+      socket.emit("leave_chat", chatId);
+      socket.off("newMessage", handleNewMessage);
+      socket.off("message_delivered", handleDelivered);
+      socket.off("message_seen", handleSeen);
+    };
+  }, [chatId, userId]);
+
+  // 3. Scroll to bottom on new message
+  useEffect(() => {
+    if (autoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [localMessages, messages]);
+
+  // 4. Emit seen for last message from others
+  useEffect(() => {
+    if (!isAtBottom) return;
+    const allMessages = [...messages, ...localMessages];
+    if (allMessages.length > 0) {
+      const lastMsg = allMessages[allMessages.length - 1];
+      const senderId =
+        typeof lastMsg.sender === "string"
+          ? lastMsg.sender
+          : lastMsg.sender?._id;
+      if (senderId !== userId && lastMsg.status !== "seen") {
+        socket.emit("message_seen", {
+          chatId,
+          messageId: lastMsg._id,
+          userId
+        });
+      }
+    }
+  }, [isAtBottom, localMessages, messages, chatId, userId]);
+
+  // 5. Combine messages for display (avoid duplicates)
+  const allMessages = [
+    ...messages,
+    ...localMessages.filter(
+      (lm) => !messages.some((m) => m._id === lm._id)
+    ),
+  ];
+
+  function renderTicks(status: "sent" | "delivered" | "seen") {
+    if (status === "sent") {
+      return <span style={{ color: "gray" }}>sent</span>;
+    }
+    if (status === "delivered") {
+      return <span style={{ color: "gray" }}>dev</span>;
+    }
+    if (status === "seen") {
+      return <span style={{ color: "white", textShadow: "0 0 2px #888" }}>seen</span>;
+    }
+    return null;
+  }
+
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    setIsAtBottom(scrollTop + clientHeight >= scrollHeight - 10);
+  };
 
   return (
     <div
@@ -56,7 +166,7 @@ export default function ChatBox({
         boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
         padding: "0",
         minHeight: "100%",
-        maxWidth: "100%",
+    
 
         display: "flex",
         flexDirection: "column",
@@ -90,7 +200,11 @@ export default function ChatBox({
           <div className="flex flex-col">
             <span>{name}</span>{" "}
             <span className="font-medium text-sm text-gray-700">
-              Last seen 3 Jun at 04:21 PM
+              {isOnline
+                ? <span style={{ color: "#4caf50" }}>Online</span>
+                : lastSeen
+                  ? `Last seen ${formatLastSeen(lastSeen)}`
+                  : "Offline"}
             </span>
           </div>
         </div>
@@ -118,6 +232,7 @@ export default function ChatBox({
           display: "flex",
           flexDirection: "column",
         }}
+        onScroll={handleScroll}
       >
         {allMessages.length === 0 && (
           <div
@@ -168,6 +283,11 @@ export default function ChatBox({
                   >
                     {formatToUserTimeZone(m.createdAt)}
                   </sub>
+                  {isMe && (
+                    <span style={{ marginLeft: 8 }}>
+                      {renderTicks(m.status)}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

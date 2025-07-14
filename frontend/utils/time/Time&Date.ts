@@ -22,7 +22,7 @@ export const getTodayDateParam = () => {
     return new Date(timestampMs).toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
+    
       hour12: true, // or false for 24-hour format
     });
   };

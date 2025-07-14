@@ -4,6 +4,12 @@ import {
   ContactDetailsData,
   BankDetailsData,
 } from "../register/page";
+interface Message {
+  sender?: string;
+  content?: string;
+  chatId?: string;
+  createdAt?: string;
+}
 export interface User {
   _id: string; 
   personalDetails: PersonalDetailsData;
@@ -14,4 +20,5 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   organizationId: string;
+  lastMessage?: Message;
 }
