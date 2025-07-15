@@ -9,20 +9,26 @@ exports.getMessages = async (req, res) => {
     const messages = await Message.find({ chat: chatId }).populate("sender", "personalDetails.firstName personalDetails.lastName");
     res.json(messages);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Invalid chatId or server error" });
   }
 };
 
 exports.getOrCreateOneToOneChat = async (req, res) => {
+  try {
     const { userId1, userId2 } = req.body;
     const members = [userId1, userId2].sort(); // always sort for consistency
-  
+
     let chat = await Chat.findOne({ isGroup: false, members: { $all: members, $size: 2 } });
     if (!chat) {
       chat = await Chat.create({ isGroup: false, members });
     }
     res.json(chat);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to get or create chat" });
   }
+}
 
 exports.getAllChatUsers = async (req, res) => {
   try {

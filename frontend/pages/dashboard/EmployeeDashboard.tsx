@@ -339,7 +339,7 @@ const EmployeeDashboard = () => {
 
   useEffect(() => {
     if (!selectedFriend || !user?.id) return;
-    getOrCreateChat({ userId1: user.id, userId2: selectedFriend._id })
+    getOrCreateChat({ userId1: user?.id, userId2: selectedFriend?._id })
       .then(res => {
         if (res?.data?._id) setChatId(res.data._id);
       });

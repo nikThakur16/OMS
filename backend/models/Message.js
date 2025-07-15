@@ -8,4 +8,7 @@ const messageSchema = new mongoose.Schema({
   seenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
 
+messageSchema.index({ chat: 1 });
+messageSchema.index({ sender: 1 });
+
 module.exports = mongoose.model('Message', messageSchema);

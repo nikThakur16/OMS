@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { setSearchQuery } from "@/reducers/search/SearchSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import socket from "@/utils/socket";
 import {
   setCredentials,
   logout,
@@ -32,6 +33,7 @@ const Navbar = () => {
       await triggerLogout().unwrap();
 
       dispatch(logout());
+      socket.disconnect(); // Disconnect the socket connection
      
       router.push("/"); // Redirect to login page after logout
     } catch (err) {

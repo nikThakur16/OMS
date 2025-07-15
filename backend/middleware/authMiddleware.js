@@ -25,7 +25,7 @@ exports.protect = async (req, res, next) => {
         const decoded = jwt.verify(token, jwtSecret);
         // Attach the user (from token payload) to the request object
         // If you need more user details, you can fetch them from the DB:
-        const user = await User.findById(decoded.user.id).select('-password'); // Fetch user details but exclude password
+        const user = await User.findById(decoded.user?.id).select('-password'); // Fetch user details but exclude password
         
         if (!user) {
             return res.status(401).json({ message: 'Not authorized, user not found' });

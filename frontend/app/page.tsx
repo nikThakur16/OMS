@@ -6,6 +6,7 @@ import { setCredentials, setUserData } from "@/reducers/auth/LoginSlice";
 import { useRouter } from "next/navigation";
 import { LoginData } from "@/types/auth/page";
 
+
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

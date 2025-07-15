@@ -124,7 +124,7 @@ exports.getEmployeeAttendance = async (req, res) => {
 
 //employee Dashboard Data
 exports.getEmployeeDashboardData = async (req, res) => {
-  const employeeId = req.user.id;
+  const employeeId = req?.user?.id;
   const today = getISTToday();
 
   // Fetch full user details excluding sensitive fields
@@ -146,7 +146,7 @@ exports.getEmployeeDashboardData = async (req, res) => {
 // ✅ UPDATE ATTENDANCE (Check-in, Check-out, Break, Resume)
 exports.updateAttendance = async (req, res) => {
   const { type, checkInTime, checkOutTime, backTime } = req.body;
-  const employeeId = req.user.id;
+  const employeeId = req?.user?.id;
   let employeeName = req.user.name;
 
   if (!employeeId) {

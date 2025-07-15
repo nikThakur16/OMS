@@ -21,4 +21,6 @@ export interface User {
   updatedAt: string;
   organizationId: string;
   lastMessage?: Message;
+  lastSeen?: string | Date;
+  
 }

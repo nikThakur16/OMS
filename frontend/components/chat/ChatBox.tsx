@@ -3,6 +3,24 @@ import socket from "@/utils/socket";
 import { formatToUserTimeZone } from "@/utils/time/Time&Date";
 import { formatLastSeen } from "@/utils/time/lastSeenFormatter";
 
+// New: Helper for offline queue
+const OFFLINE_QUEUE_KEY = 'chat_offline_queue';
+function getOfflineQueue() {
+  try {
+    return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+  } catch (e) {
+    // Optionally log error
+    return [];
+  }
+}
+function setOfflineQueue(queue: any[]) {
+  try {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  } catch (e) {
+    // Optionally log error
+  }
+}
+
 export default function ChatBox({
   chatId,
   userId,
@@ -10,7 +28,8 @@ export default function ChatBox({
   name,
   isOnline,
   lastSeen,
-  onClick
+  onClick,
+  refetch, // <-- Add this
 }: {
   chatId: string;
   userId: string;
@@ -19,16 +38,42 @@ export default function ChatBox({
   isOnline: boolean;
   lastSeen?: string | Date;
   onClick?: () => void;
+  refetch: () => void; // <-- Add this
 }) {
   const [localMessages, setLocalMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const prevChatIdRef = useRef<string | null>(null);
 
-  // 1. Send message (optimistic, one gray tick)
+  // New: Send queued messages when back online
+  useEffect(() => {
+    function trySendQueued() {
+      if (navigator.onLine) {
+        const queue = getOfflineQueue();
+        if (queue.length > 0) {
+          queue.forEach((msg: any) => {
+            socket.emit("send_message", msg);
+          });
+          setOfflineQueue([] as any[]); // Fix: always pass array
+        }
+      }
+    }
+    window.addEventListener('online', trySendQueued);
+    trySendQueued();
+    return () => {
+      window.removeEventListener('online', trySendQueued);
+    };
+  },[]);
+
+  // 1. Send message (with offline/pending support)
   const sendMessage = () => {
     if (!input.trim()) return;
+    if (!userId) {
+      alert("User ID is missing! Cannot send message.");
+      return;
+    }
     const tempId = "temp-" + Date.now();
     const msg = {
       _id: tempId,
@@ -36,11 +81,29 @@ export default function ChatBox({
       sender: userId,
       content: input,
       createdAt: new Date().toISOString(),
-      status: "sent"
+      status: navigator.onLine ? "sent" : "pending"
     };
     setLocalMessages((prev) => [...prev, msg]);
-    socket.emit("send_message", msg);
+    if (navigator.onLine) {
+      socket.emit("send_message", msg);
+    } else {
+      // New: queue message if offline
+      const queue = getOfflineQueue();
+      setOfflineQueue([...queue, msg]);
+    }
     setInput("");
+  };
+
+  // New: Retry sending a pending message
+  const retrySendMessage = (pendingMsg: any) => {
+    if (!navigator.onLine) return;
+    // Remove from offline queue
+    const queue = getOfflineQueue().filter((msg: any) => msg._id !== pendingMsg._id);
+    setOfflineQueue(queue);
+    // Remove from localMessages (pending)
+    setLocalMessages((prev) => prev.filter((msg) => msg._id !== pendingMsg._id));
+    // Resend
+    socket.emit("send_message", { ...pendingMsg, status: "sent" });
   };
 
   // 2. Listen for newMessage, message_delivered, message_seen
@@ -48,14 +111,19 @@ export default function ChatBox({
     // Clear local messages on chat change
     setLocalMessages([]);
 
-    // Join chat room
+    // Leave previous chat room if chatId changes
+    if (prevChatIdRef.current && prevChatIdRef.current !== chatId) {
+      socket.emit("leave_chat", prevChatIdRef.current, userId);
+    }
+    // Join new chat room
     socket.emit("join_chat", chatId, userId);
+    prevChatIdRef.current = chatId;
 
     // When a new message is received (from anyone)
-    function handleNewMessage(msg) {
+    function handleNewMessage(msg: any) {
       setLocalMessages((prev) => {
         // If this is my own message (optimistic), update its _id and status
-        if (msg.sender === userId || msg.sender?._id === userId) {
+        if ( msg.sender?._id === userId) {
           // Find the temp message
           const idx = prev.findIndex(
             (m) =>
@@ -76,7 +144,7 @@ export default function ChatBox({
     }
 
     // When message is delivered (double gray tick)
-    function handleDelivered({ messageId }) {
+    function handleDelivered({ messageId }: { messageId: string }) {
       setLocalMessages((prev) =>
         prev.map((msg) =>
           msg._id === messageId ? { ...msg, status: "delivered" } : msg
@@ -85,12 +153,14 @@ export default function ChatBox({
     }
 
     // When message is seen (double white tick)
-    function handleSeen({ messageId }) {
+    function handleSeen({ messageId, userId: seenByUserId }: { messageId: string, userId: string }) {
       setLocalMessages((prev) =>
         prev.map((msg) =>
           msg._id === messageId ? { ...msg, status: "seen" } : msg
         )
       );
+      // Trigger a refetch of messages from the backend for optimistic UI
+      if (refetch) refetch();
     }
 
     socket.on("newMessage", handleNewMessage);
@@ -98,12 +168,13 @@ export default function ChatBox({
     socket.on("message_seen", handleSeen);
 
     return () => {
-      socket.emit("leave_chat", chatId);
+      // On unmount, leave the current chat room
+      socket.emit("leave_chat", chatId, userId);
       socket.off("newMessage", handleNewMessage);
       socket.off("message_delivered", handleDelivered);
       socket.off("message_seen", handleSeen);
     };
-  }, [chatId, userId]);
+  }, [chatId, userId, refetch]);
 
   // 3. Scroll to bottom on new message
   useEffect(() => {
@@ -112,23 +183,22 @@ export default function ChatBox({
     }
   }, [localMessages, messages]);
 
-  // 4. Emit seen for last message from others
+  // 4. Emit seen for all unseen messages from others
   useEffect(() => {
     if (!isAtBottom) return;
-    const allMessages = [...messages, ...localMessages];
-    if (allMessages.length > 0) {
-      const lastMsg = allMessages[allMessages.length - 1];
-      const senderId =
-        typeof lastMsg.sender === "string"
-          ? lastMsg.sender
-          : lastMsg.sender?._id;
-      if (senderId !== userId && lastMsg.status !== "seen") {
+    const allMsgs = [...messages, ...localMessages];
+    const unseenMsgs = allMsgs.filter((msg) => {
+      const senderId = typeof msg.sender === "string" ? msg.sender : msg.sender?._id;
+      return senderId !== userId && msg.status !== "seen";
+    });
+    if (unseenMsgs.length > 0) {
+      unseenMsgs.forEach((msg) => {
         socket.emit("message_seen", {
           chatId,
-          messageId: lastMsg._id,
+          messageId: msg._id,
           userId
         });
-      }
+      });
     }
   }, [isAtBottom, localMessages, messages, chatId, userId]);
 
@@ -140,23 +210,23 @@ export default function ChatBox({
     ),
   ];
 
-  function renderTicks(status: "sent" | "delivered" | "seen") {
-    if (status === "sent") {
-      return <span style={{ color: "gray" }}>sent</span>;
-    }
-    if (status === "delivered") {
-      return <span style={{ color: "gray" }}>dev</span>;
-    }
-    if (status === "seen") {
-      return <span style={{ color: "white", textShadow: "0 0 2px #888" }}>seen</span>;
-    }
+  function renderStatus(status: "pending" | "sent" | "delivered" | "seen") {
+    if (status === "pending") return <span style={{ color: "#bdbdbd" }}>pending</span>;
+    if (status === "sent") return <span style={{ color: "gray" }}>sent</span>;
+    if (status === "delivered") return <span style={{ color: "gray" }}>delivered</span>;
+    if (status === "seen") return <span style={{ color: "#1976d2" }}>seen</span>;
     return null;
   }
 
-  const handleScroll = (e) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.target;
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     setIsAtBottom(scrollTop + clientHeight >= scrollHeight - 10);
   };
+
+  useEffect(() => {
+    // Whenever backend messages change (e.g., after refetch), clear localMessages
+    setLocalMessages([]);
+  }, [messages]);
 
   return (
     <div
@@ -281,11 +351,20 @@ export default function ChatBox({
                       isMe ? "text-zinc-200" : "text-zinc-700"
                     } font-medium`}
                   >
-                    {formatToUserTimeZone(m.createdAt)}
+                    {typeof m.createdAt === 'string' ? formatToUserTimeZone(m.createdAt, Intl.DateTimeFormat().resolvedOptions().timeZone) : ""}
                   </sub>
                   {isMe && (
                     <span style={{ marginLeft: 8 }}>
-                      {renderTicks(m.status)}
+                      {renderStatus(m.status)}
+                      {m.status === "pending" && (
+                        <button
+                          style={{ marginLeft: 4, color: '#1976d2', background: 'none', border: 'none', cursor: 'pointer' }}
+                          title="Retry"
+                          onClick={() => retrySendMessage(m)}
+                        >
+                          ⟳
+                        </button>
+                      )}
                     </span>
                   )}
                 </div>

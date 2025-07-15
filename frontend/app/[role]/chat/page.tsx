@@ -17,26 +17,32 @@ import { formatTime } from "@/utils/time/Time&Date";
 
 
 
+
 export default function ChatPage() {
   const user = useAppSelector((state: any) => state.login.user);
+  // Removed console.log
 
-  const { data: users = [], refetch: refetchDirectory } = useGetChatUserDirectoryQuery();
+  const { data: users = [], refetch: refetchDirectory, error: userDirectoryError } = useGetChatUserDirectoryQuery();
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const [chatId, setChatId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [getOrCreateChat] = useGetOrCreateOneToOneChatMutation();
   const [showSearch, setShowSearch] = useState(false);
-  const { data: messages = [], refetch } = useGetChatMessagesQuery(chatId, { skip: !chatId });
+  const { data: messages = [], refetch, error: messagesError } = useGetChatMessagesQuery(chatId, { skip: !chatId });
   const [showUserInfo, setShowUserInfo] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  // Removed console.log
 
   useEffect(() => {
-    if (!selectedFriend || !user?.id) return;
-    getOrCreateChat({ userId1: user.id, userId2: selectedFriend._id }).then(
+    if (!selectedFriend || !(user?.id || user?._id)) return;
+    getOrCreateChat({ userId1: user?.id || user?._id, userId2: selectedFriend?._id }).then(
       (res) => {
-        if (res?.data?._id) setChatId(res.data._id);
+        if (res?.data?._id) setChatId(res.data?._id);
       }
-    );
+    ).catch((err) => {
+      // Basic error handling
+      alert("Failed to get or create chat");
+    });
   }, [selectedFriend, user, getOrCreateChat]);
 
   // Refetch messages when chatId changes
@@ -48,31 +54,58 @@ export default function ChatPage() {
 
   // Listen for new messages and update both messages and last message preview
   useEffect(() => {
-    function handleNewMessage(message) {
-      if (message.chatId === chatId) {
-        refetch();
+    function handleNewMessage(message:any) {
+      if (message?.chatId === chatId) {
+        refetch(); // This will reload messages from the backend
       }
       refetchDirectory();
     }
     socket.on("newMessage", handleNewMessage);
-    return () => socket.off("newMessage", handleNewMessage);
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+    };
   }, [chatId, refetch, refetchDirectory]);
 
   useEffect(() => {
-    socket.emit("user_online", user?.id);
-    socket.on("user_online", (userId) => {
+    if (!user?.id) return;
+
+    // Ensure we emit user_online on every (re)connect
+    const handleConnect = () => {
+      socket.emit("user_online", user?.id);
+      socket.emit("get_online_users");
+    };
+
+    socket.on("connect", handleConnect);
+
+    // Listen for the full list once
+    const handleOnlineUsersList = (userIds: string[]) => setOnlineUsers(userIds);
+    const handleUserOnline = (userId: string) =>
       setOnlineUsers((prev) => [...new Set([...prev, userId])]);
-    });
-    socket.on("user_offline", (userId) => {
+    const handleUserOffline = (userId: string) =>
       setOnlineUsers((prev) => prev.filter((id) => id !== userId));
-    });
+
+    socket.on("online_users_list", handleOnlineUsersList);
+    socket.on("user_online", handleUserOnline);
+    socket.on("user_offline", handleUserOffline);
+
+    // If already connected, trigger manually
+    if (socket.connected) handleConnect();
+
     return () => {
-      socket.off("user_online");
-      socket.off("user_offline");
+      socket.off("connect", handleConnect);
+      socket.off("online_users_list", handleOnlineUsersList);
+      socket.off("user_online", handleUserOnline);
+      socket.off("user_offline", handleUserOffline);
     };
   }, [user?.id]);
 
-  console.log(users)
+  // Add error display for user directory and messages
+  if (userDirectoryError) {
+    return <div>Error loading user directory.</div>;
+  }
+  if (messagesError) {
+    return <div>Error loading messages.</div>;
+  }
   return (
     <div
       onClick={() => {
@@ -138,7 +171,7 @@ export default function ChatPage() {
 
         <div className="  px-1.5 py-3 m-0 mb-2 flex flex-col gap-4 ">
           {users
-            .filter((u) => u._id !== user?.id)
+            .filter((u) => u._id !== (user?.id || user?._id))
             .filter((friend) => {
               const fullName =
                 `${friend.personalDetails.firstName} ${friend.personalDetails.lastName}`.toLowerCase();
@@ -150,8 +183,13 @@ export default function ChatPage() {
               return friend.lastMessage && friend.lastMessage.content;
             })
             .map((friend) => {
-            
-          
+              if (!friend) return null;
+              // Type guards for lastMessage and sender
+              const lastMessage = friend?.lastMessage as any;
+              const senderId = typeof lastMessage?.sender === 'string' ? lastMessage?.sender : lastMessage?.sender?._id;
+              const isMe = senderId === (user?.id || user?._id);
+              const seenBy = lastMessage?.seenBy || [];
+              // New logic: show blue tick if seen, gray tick if delivered but not seen
               return (
                 <div
                   className="hover:bg-gray-200 flex items-center justify-between gap-4 px-2 py-3 rounded-lg cursor-pointer shadow-[0_4px_8px_0_rgba(0,0,0,0.1)]"
@@ -165,18 +203,18 @@ export default function ChatPage() {
                         {friend.personalDetails.firstName} {friend.personalDetails.lastName}
                       </span>
                       <span className="text-gray-700 font-medium flex items-center">
-                          {friend?.lastMessage?.content ? (
+                        {lastMessage?.content ? (
                           <>
-                            {friend?.lastMessage?.sender?._id === user?._id && (
-                              <span className="text-blue-500 mr-1">
-                                {/* Double tick SVG or icon */}
-                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                  <path d="M1.5 8.5l4 4 9-9" stroke="currentColor" strokeWidth="2" fill="none"/>
-                                  <path d="M5.5 8.5l4 4 5-5" stroke="currentColor" strokeWidth="2" fill="none"/>
-                                </svg>
-                              </span>
+                            {isMe && (
+                              seenBy.includes(friend._id) ? (
+                                <span className="text-blue-500 mr-1">seen</span>
+                              ) : (
+                                <span className="text-gray-500 mr-1">
+                                  {lastMessage.status === "delivered" ? "delivered" : "sent"}
+                                </span>
+                              )
                             )}
-                            {friend?.lastMessage?.content}
+                            {lastMessage?.content}
                           </>
                         ) : (
                           "No messages yet"
@@ -186,7 +224,8 @@ export default function ChatPage() {
                   </div>
                   <span className="font-semibold text-sm text-gray-600">
                     {/* Optionally, show time of last message */}
-                    {friend?.lastMessage ? formatTime(friend?.lastMessage?.createdAt) : ""}
+                    {/* Fix: fallback to empty string if createdAt is undefined */}
+                    {lastMessage ? formatTime(lastMessage?.createdAt): ""}
                   </span>
                 </div>
               );
@@ -198,19 +237,16 @@ export default function ChatPage() {
           showUserInfo ? "w-1/2" : "w-3/4"
         } bg-white p-4 rounded-md overflow-y-scroll hide-scrollbar`}
       >
-        {chatId ? (
+        {chatId && selectedFriend ? (
           <ChatBox
             chatId={chatId}
-            userId={user?._id}
+            userId={user?.id}
             messages={messages}
-            name={
-              selectedFriend
-                ? `${selectedFriend.personalDetails.firstName} ${selectedFriend.personalDetails.lastName}`
-                : "Chat"
-            }
+            name={selectedFriend ? `${selectedFriend.personalDetails.firstName} ${selectedFriend.personalDetails.lastName}` : "Chat"}
             isOnline={onlineUsers.includes(selectedFriend?._id)}
             lastSeen={users.find(u => u._id === selectedFriend?._id)?.lastSeen}
             onClick={() => setShowUserInfo(!showUserInfo)}
+            refetch={refetch}
           />
         ) : (
           <NoConversation />

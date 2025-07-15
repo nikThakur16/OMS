@@ -70,7 +70,7 @@ const io = require("socket.io")(server, {
 });
 app.set("io", io);
 
-const onlineUsers = new Map(); // userId -> socket.id
+const onlineUsers = new Map(); // userId -> Set of socket ids
 
 // Track users in rooms
 const usersInRooms = {}; // { chatId: Set of userIds }
@@ -78,7 +78,10 @@ const usersInRooms = {}; // { chatId: Set of userIds }
 io.on("connection", (socket) => {
   // When a user comes online
   socket.on("user_online", (userId) => {
-    onlineUsers.set(userId, socket.id);
+    if (!onlineUsers.has(userId)) {
+      onlineUsers.set(userId, new Set());
+    }
+    onlineUsers.get(userId).add(socket.id);
     socket.userId = userId;
     io.emit("user_online", userId);
   });
@@ -130,17 +133,19 @@ io.on("connection", (socket) => {
         usersInRooms[data.chatId] &&
         usersInRooms[data.chatId].has(recipientId.toString())
       ) {
-        const recipientSocketId = onlineUsers.get(recipientId.toString());
-        if (recipientSocketId) {
-          io.to(recipientSocketId).emit("newMessage", {
-            ...data,
-            _id: message._id,
-            createdAt: message.createdAt,
-            sender: populatedMsg.sender,
-            status: "delivered",
-          });
-          // Also notify sender that message is delivered
-          io.to(socket.id).emit("message_delivered", { messageId: message._id });
+        const recipientSocketIds = onlineUsers.get(recipientId.toString());
+        if (recipientSocketIds && recipientSocketIds.size > 0) {
+          for (const recipientSocketId of recipientSocketIds) {
+            io.to(recipientSocketId).emit("newMessage", {
+              ...data,
+              _id: message._id,
+              createdAt: message.createdAt,
+              sender: populatedMsg.sender,
+              status: "delivered",
+            });
+            // Also notify sender that message is delivered
+            io.to(socket.id).emit("message_delivered", { messageId: message?._id });
+          }
         }
       }
     } catch (err) {
@@ -160,14 +165,26 @@ io.on("connection", (socket) => {
   // On disconnect, clean up
   socket.on("disconnect", async () => {
     if (socket.userId) {
-      onlineUsers.delete(socket.userId);
+      const userSockets = onlineUsers.get(socket.userId);
+      if (userSockets) {
+        userSockets.delete(socket.id);
+        if (userSockets.size === 0) {
+          onlineUsers.delete(socket.userId);
+          io.emit("user_offline", socket.userId);
+          await User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() });
+        }
+      }
       // Remove from all rooms
       Object.keys(usersInRooms).forEach(chatId => {
         usersInRooms[chatId].delete(socket.userId);
       });
-      await User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() });
-      io.emit("user_offline", socket.userId);
     }
+  });
+
+  // Add this inside io.on("connection", (socket) => { ... })
+  socket.on("get_online_users", () => {
+    // Send the list of currently online user IDs
+    io.to(socket.id).emit("online_users_list", Array.from(onlineUsers.keys()));
   });
 });
 
