@@ -70,7 +70,7 @@ const io = require("socket.io")(server, {
 });
 app.set("io", io);
 
-const onlineUsers = new Map(); // userId -> Set of socket ids
+const onlineUsers = new Set();
 
 // Track users in rooms
 const usersInRooms = {}; // { chatId: Set of userIds }
@@ -78,27 +78,32 @@ const usersInRooms = {}; // { chatId: Set of userIds }
 io.on("connection", (socket) => {
   // When a user comes online
   socket.on("user_online", (userId) => {
-    if (!onlineUsers.has(userId)) {
-      onlineUsers.set(userId, new Set());
-    }
-    onlineUsers.get(userId).add(socket.id);
+    onlineUsers.add(userId);
     socket.userId = userId;
+    socket.join(userId); // <--- Add this line
     io.emit("user_online", userId);
   });
 
   // When a user joins a chat
   socket.on("join_chat", (chatId, userId) => {
+    console.log(`[DEBUG] User ${userId} joined chat ${chatId} (socket: ${socket.id})`);
     socket.join(chatId);
     if (!usersInRooms[chatId]) usersInRooms[chatId] = new Set();
-    usersInRooms[chatId].add(userId);
+    usersInRooms[chatId].add(userId.toString());
     socket.chatId = chatId;
     socket.userId = userId;
+    // Emit updated room users to all in the room
+    const users = Array.from(usersInRooms[chatId]);
+    io.to(chatId).emit("room_users", users);
   });
 
   // When a user leaves a chat (optional, for cleanup)
   socket.on("leave_chat", (chatId, userId) => {
     socket.leave(chatId);
     if (usersInRooms[chatId]) usersInRooms[chatId].delete(userId);
+    // Emit updated room users to all in the room
+    const users = usersInRooms[chatId] ? Array.from(usersInRooms[chatId]) : [];
+    io.to(chatId).emit("room_users", users);
   });
 
   // When sending a message
@@ -109,7 +114,7 @@ io.on("connection", (socket) => {
         sender: data.sender,
         content: data.content,
         status: "sent",
-        seenBy: [],
+        seen: false,
       });
       await Chat.findByIdAndUpdate(data.chatId, { lastMessage: message._id });
 
@@ -128,25 +133,28 @@ io.on("connection", (socket) => {
         status: "sent",
       });
 
-      // Emit to recipient: status "delivered" (if online in room)
+      // Only emit "delivered" if recipient is online and in the chat room
+      console.log('[DEBUG] onlineUsers:', onlineUsers);
+      console.log('[DEBUG] Checking delivery for chatId:', data.chatId, 'recipientId:', recipientId);
       if (
-        usersInRooms[data.chatId] &&
-        usersInRooms[data.chatId].has(recipientId.toString())
+        onlineUsers.has(recipientId.toString())
       ) {
-        const recipientSocketIds = onlineUsers.get(recipientId.toString());
-        if (recipientSocketIds && recipientSocketIds.size > 0) {
-          for (const recipientSocketId of recipientSocketIds) {
-            io.to(recipientSocketId).emit("newMessage", {
-              ...data,
-              _id: message._id,
-              createdAt: message.createdAt,
-              sender: populatedMsg.sender,
-              status: "delivered",
-            });
-            // Also notify sender that message is delivered
-            io.to(socket.id).emit("message_delivered", { messageId: message?._id });
-          }
-        }
+        // Recipient is online and in the chat room
+        // Emit "delivered" to recipient and notify sender
+        io.to(recipientId.toString()).emit("newMessage", {
+          ...data,
+          _id: message._id,
+          createdAt: message.createdAt,
+          sender: populatedMsg.sender,
+          status: "seen",
+        });
+        // Also notify sender that message is delivered
+        io.to(socket.id).emit("message_delivered", { messageId: message?._id });
+        // Persist delivered status in the database
+        await Message.findByIdAndUpdate(message?._id, { status: "delivered" });
+        console.log(`[DEBUG] Message ${message._id} marked as delivered`);
+      } else {
+        // Do not emit "delivered", message stays "sent"
       }
     } catch (err) {
       console.error("Error sending message:", err);
@@ -155,25 +163,19 @@ io.on("connection", (socket) => {
 
   // When a message is seen
   socket.on("message_seen", async ({ chatId, messageId, userId }) => {
-    await Message.findByIdAndUpdate(messageId, {
-      $addToSet: { seenBy: userId },
-      status: "seen",
-    });
+    // 1. Update the message in the database to mark as seen
+    await Message.findByIdAndUpdate(messageId, { status: "seen", seen: true });
+
+    // 2. Notify all clients in the chat room
     io.to(chatId).emit("message_seen", { messageId, userId });
   });
 
   // On disconnect, clean up
   socket.on("disconnect", async () => {
     if (socket.userId) {
-      const userSockets = onlineUsers.get(socket.userId);
-      if (userSockets) {
-        userSockets.delete(socket.id);
-        if (userSockets.size === 0) {
-          onlineUsers.delete(socket.userId);
-          io.emit("user_offline", socket.userId);
-          await User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() });
-        }
-      }
+      onlineUsers.delete(socket.userId);
+      io.emit("user_offline", socket.userId);
+      await User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() });
       // Remove from all rooms
       Object.keys(usersInRooms).forEach(chatId => {
         usersInRooms[chatId].delete(socket.userId);
@@ -184,7 +186,13 @@ io.on("connection", (socket) => {
   // Add this inside io.on("connection", (socket) => { ... })
   socket.on("get_online_users", () => {
     // Send the list of currently online user IDs
-    io.to(socket.id).emit("online_users_list", Array.from(onlineUsers.keys()));
+    io.to(socket.id).emit("online_users_list", Array.from(onlineUsers));
+  });
+
+  // Respond to get_room_users from frontend
+  socket.on("get_room_users", (chatId) => {
+    const users = usersInRooms[chatId] ? Array.from(usersInRooms[chatId]) : [];
+    io.to(socket.id).emit("room_users", users);
   });
 });
 

@@ -13,5 +13,5 @@ router.post("/one-to-one", chatController.getOrCreateOneToOneChat);
 router.get("/:chatId/messages", chatController.getMessages);
 
 router.get("/", chatController.getAllChatUsers );
-  
+
 module.exports = router;

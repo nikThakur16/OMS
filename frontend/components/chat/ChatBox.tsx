@@ -46,6 +46,7 @@ export default function ChatBox({
   const [autoScroll, setAutoScroll] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const prevChatIdRef = useRef<string | null>(null);
+  const [roomUsers, setRoomUsers] = useState<string[]>([]);
 
   // New: Send queued messages when back online
   useEffect(() => {
@@ -66,6 +67,21 @@ export default function ChatBox({
       window.removeEventListener('online', trySendQueued);
     };
   },[]);
+
+  // Listen for room_users event from backend
+  useEffect(() => {
+    function handleRoomUsers(users: string[]) {
+      setRoomUsers(users);
+    }
+    socket.on("room_users", handleRoomUsers);
+    // Request the current room users when joining
+    if (chatId) {
+      socket.emit("get_room_users", chatId);
+    }
+    return () => {
+      socket.off("room_users", handleRoomUsers);
+    };
+  }, [chatId]);
 
   // 1. Send message (with offline/pending support)
   const sendMessage = () => {
@@ -116,11 +132,19 @@ export default function ChatBox({
       socket.emit("leave_chat", prevChatIdRef.current, userId);
     }
     // Join new chat room
-    socket.emit("join_chat", chatId, userId);
+    const joinUserId = userId || (typeof window !== 'undefined' && window.localStorage && window.localStorage.getItem('userId'));
+    console.log("[DEBUG] Emitting join_chat", chatId, joinUserId);
+    socket.emit("join_chat", chatId, joinUserId);
     prevChatIdRef.current = chatId;
 
     // When a new message is received (from anyone)
     function handleNewMessage(msg: any) {
+      if (msg.status === "delivered") {
+        console.log("[DEBUG] Received message with status 'delivered'", msg);
+      }
+      if (msg.status === "seen" || msg.seen) {
+        console.log("[DEBUG] Received message with status 'seen'", msg);
+      }
       setLocalMessages((prev) => {
         // If this is my own message (optimistic), update its _id and status
         if ( msg.sender?._id === userId) {
@@ -132,34 +156,50 @@ export default function ChatBox({
               m.status === "sent"
           );
           if (idx !== -1) {
-            // Replace temp message with real one, set status to delivered
+            // Replace temp message with real one, set status to delivered/seen
             const updated = [...prev];
-            updated[idx] = { ...msg, status: "delivered" };
+            updated[idx] = { ...msg, status: msg.status, seen: msg.seen };
             return updated;
           }
         }
         // Otherwise, just add the message (from others)
-        return [...prev, { ...msg, status: "delivered" }];
+        return [...prev, { ...msg, status: msg.status, seen: msg.seen }];
       });
     }
 
     // When message is delivered (double gray tick)
     function handleDelivered({ messageId }: { messageId: string }) {
+      console.log("delivered", messageId, "in ChatBox of", userId);
       setLocalMessages((prev) =>
         prev.map((msg) =>
           msg._id === messageId ? { ...msg, status: "delivered" } : msg
         )
+        
       );
+      if (refetch) refetch();
     }
 
-    // When message is seen (double white tick)
+    // When message is seen (double blue tick)
     function handleSeen({ messageId, userId: seenByUserId }: { messageId: string, userId: string }) {
-      setLocalMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === messageId ? { ...msg, status: "seen" } : msg
-        )
-      );
-      // Trigger a refetch of messages from the backend for optimistic UI
+      console.log("[DEBUG] Received message_seen event", messageId, seenByUserId, "in ChatBox of", userId);
+      setLocalMessages((prev) => {
+        let found = false;
+        const updated = prev.map((msg) => {
+          if (msg._id.toString() === messageId.toString()) {
+            found = true;
+            return { ...msg, status: "seen", seen: true };
+          }
+          return msg;
+        });
+        // If not found, add a minimal message object to update the UI for the sender
+        if (!found) {
+          return [
+            ...updated,
+            { _id: messageId, status: "seen", seen: true }
+          ];
+        }
+        return updated;
+      });
       if (refetch) refetch();
     }
 
@@ -174,7 +214,7 @@ export default function ChatBox({
       socket.off("message_delivered", handleDelivered);
       socket.off("message_seen", handleSeen);
     };
-  }, [chatId, userId, refetch]);
+  }, [chatId, userId, refetch, messages]);
 
   // 3. Scroll to bottom on new message
   useEffect(() => {
@@ -185,7 +225,8 @@ export default function ChatBox({
 
   // 4. Emit seen for all unseen messages from others
   useEffect(() => {
-    if (!isAtBottom) return;
+    if (!document.hasFocus()) return;
+    // Remove this check for testing: if (!roomUsers.includes(userId) || roomUsers.length < 2) return;
     const allMsgs = [...messages, ...localMessages];
     const unseenMsgs = allMsgs.filter((msg) => {
       const senderId = typeof msg.sender === "string" ? msg.sender : msg.sender?._id;
@@ -193,6 +234,7 @@ export default function ChatBox({
     });
     if (unseenMsgs.length > 0) {
       unseenMsgs.forEach((msg) => {
+        console.log("Emitting message_seen for", msg._id);
         socket.emit("message_seen", {
           chatId,
           messageId: msg._id,
@@ -200,21 +242,25 @@ export default function ChatBox({
         });
       });
     }
-  }, [isAtBottom, localMessages, messages, chatId, userId]);
+  }, [localMessages, messages, chatId, userId, roomUsers]);
 
   // 5. Combine messages for display (avoid duplicates)
   const allMessages = [
-    ...messages,
-    ...localMessages.filter(
-      (lm) => !messages.some((m) => m._id === lm._id)
-    ),
+    ...messages.map((msg) => {
+      // If there's a local version of this message, use it (it may have updated status)
+      const local = localMessages.find((lm) => lm._id.toString() === msg._id.toString());
+      return local ? { ...msg, ...local } : msg;
+    }),
+    // Add any local messages that aren't in messages yet (e.g., pending/outgoing)
+    ...localMessages.filter((lm) => !messages.some((m) => m._id.toString() === lm._id.toString())),
   ];
 
-  function renderStatus(status: "pending" | "sent" | "delivered" | "seen") {
-    if (status === "pending") return <span style={{ color: "#bdbdbd" }}>pending</span>;
-    if (status === "sent") return <span style={{ color: "gray" }}>sent</span>;
-    if (status === "delivered") return <span style={{ color: "gray" }}>delivered</span>;
-    if (status === "seen") return <span style={{ color: "#1976d2" }}>seen</span>;
+  function renderStatus(msg: any) {
+    console.log("[DEBUG] Rendering status for", msg._id, ":", msg.status, msg.seen);
+    if (msg.status === "pending") return <span style={{ color: "#bdbdbd" }}>pending</span>;
+    if (msg.seen || msg.status === "seen") return <span style={{ color: "#1976d2" }}>seen</span>;
+    if (msg.status === "delivered") return <span style={{ color: "gray" }}>delivered</span>;
+    if (msg.status === "sent") return <span style={{ color: "gray" }}>sent</span>;
     return null;
   }
 
@@ -227,6 +273,8 @@ export default function ChatBox({
     // Whenever backend messages change (e.g., after refetch), clear localMessages
     setLocalMessages([]);
   }, [messages]);
+
+  console.log('[DEBUG] ChatBox userId:', userId);
 
   return (
     <div
@@ -355,7 +403,7 @@ export default function ChatBox({
                   </sub>
                   {isMe && (
                     <span style={{ marginLeft: 8 }}>
-                      {renderStatus(m.status)}
+                      {renderStatus(m)}
                       {m.status === "pending" && (
                         <button
                           style={{ marginLeft: 4, color: '#1976d2', background: 'none', border: 'none', cursor: 'pointer' }}

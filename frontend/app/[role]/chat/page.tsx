@@ -184,12 +184,10 @@ export default function ChatPage() {
             })
             .map((friend) => {
               if (!friend) return null;
-              // Type guards for lastMessage and sender
               const lastMessage = friend?.lastMessage as any;
               const senderId = typeof lastMessage?.sender === 'string' ? lastMessage?.sender : lastMessage?.sender?._id;
               const isMe = senderId === (user?.id || user?._id);
-              const seenBy = lastMessage?.seenBy || [];
-              // New logic: show blue tick if seen, gray tick if delivered but not seen
+              // WhatsApp-like logic: use only status/seen, not online status
               return (
                 <div
                   className="hover:bg-gray-200 flex items-center justify-between gap-4 px-2 py-3 rounded-lg cursor-pointer shadow-[0_4px_8px_0_rgba(0,0,0,0.1)]"
@@ -206,12 +204,12 @@ export default function ChatPage() {
                         {lastMessage?.content ? (
                           <>
                             {isMe && (
-                              seenBy.includes(friend._id) ? (
+                              lastMessage.seen || lastMessage.status === "seen" ? (
                                 <span className="text-blue-500 mr-1">seen</span>
+                              ) : lastMessage.status === "delivered" ? (
+                                <span className="text-gray-500 mr-1">delivered</span>
                               ) : (
-                                <span className="text-gray-500 mr-1">
-                                  {lastMessage.status === "delivered" ? "delivered" : "sent"}
-                                </span>
+                                <span className="text-gray-500 mr-1">sent</span>
                               )
                             )}
                             {lastMessage?.content}
@@ -223,8 +221,6 @@ export default function ChatPage() {
                     </div>
                   </div>
                   <span className="font-semibold text-sm text-gray-600">
-                    {/* Optionally, show time of last message */}
-                    {/* Fix: fallback to empty string if createdAt is undefined */}
                     {lastMessage ? formatTime(lastMessage?.createdAt): ""}
                   </span>
                 </div>

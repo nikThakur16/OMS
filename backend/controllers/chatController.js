@@ -18,7 +18,7 @@ exports.getOrCreateOneToOneChat = async (req, res) => {
   try {
     const { userId1, userId2 } = req.body;
     const members = [userId1, userId2].sort(); // always sort for consistency
-
+  
     let chat = await Chat.findOne({ isGroup: false, members: { $all: members, $size: 2 } });
     if (!chat) {
       chat = await Chat.create({ isGroup: false, members });
@@ -28,7 +28,7 @@ exports.getOrCreateOneToOneChat = async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Failed to get or create chat" });
   }
-}
+  }
 
 exports.getAllChatUsers = async (req, res) => {
   try {

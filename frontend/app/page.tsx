@@ -5,13 +5,13 @@ import { useAppDispatch } from "@/store/hooks";
 import { setCredentials, setUserData } from "@/reducers/auth/LoginSlice";
 import { useRouter } from "next/navigation";
 import { LoginData } from "@/types/auth/page";
-
+import socket, { registerUserOnline } from "@/utils/socket";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
- 
+
   const dispatch = useAppDispatch();
 
   const [login, { isLoading, error, data }] = useLoginMutation();
@@ -19,18 +19,16 @@ const LoginPage = () => {
   const router = useRouter();
 
   useEffect(() => {
-    
-      const token = localStorage.getItem("token");
-      const user = localStorage.getItem("user");
-      console.log("11111111111111111111111111",user)
-      if (token && user) {
-        const parsedUser = JSON.parse(user);
-        console.log("11111111111111111111111111",parsedUser)
-        if (parsedUser.role) {
-          router.replace(`/${parsedUser.role.toLowerCase()}/dashboard`);
-        }
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+    console.log("11111111111111111111111111", user);
+    if (token && user) {
+      const parsedUser = JSON.parse(user);
+      console.log("11111111111111111111111111", parsedUser);
+      if (parsedUser.role) {
+        router.replace(`/${parsedUser.role.toLowerCase()}/dashboard`);
       }
-    
+    }
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -48,6 +46,7 @@ const LoginPage = () => {
 
       console.log("Login successful:", result);
 
+
       localStorage.setItem(
         "user",
         result.user ? JSON.stringify(result.user) : ""
@@ -63,7 +62,7 @@ const LoginPage = () => {
           `/${result?.user?.role}/dashboard?org=${result.user.organizationId}`
         );
       } else {
-        router.push(`/${result?.user?.role}/dashboard`); 
+        router.push(`/${result?.user?.role}/dashboard`);
       }
     } catch (err) {
       console.error("Login failed:", err);
@@ -84,8 +83,6 @@ const LoginPage = () => {
       }
     }
   };
-
-  
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#E0F2F7]">
