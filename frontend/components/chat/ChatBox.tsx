@@ -93,6 +93,7 @@ export default function ChatBox({
     const tempId = "temp-" + Date.now();
     const msg = {
       _id: tempId,
+      clientTempId: tempId,
       chatId,
       sender: userId,
       content: input,
@@ -145,16 +146,12 @@ export default function ChatBox({
       if (msg.status === "seen" || msg.seen) {
         console.log("[DEBUG] Received message with status 'seen'", msg);
       }
+      // Only add message if it belongs to the current chatId
+      if ((msg.chatId || msg.chat) !== chatId) return;
       setLocalMessages((prev) => {
         // If this is my own message (optimistic), update its _id and status
-        if ( msg.sender?._id === userId) {
-          // Find the temp message
-          const idx = prev.findIndex(
-            (m) =>
-              m.content === msg.content &&
-              m.sender === userId &&
-              m.status === "sent"
-          );
+        if (msg.clientTempId) {
+          const idx = prev.findIndex((m) => m.clientTempId === msg.clientTempId);
           if (idx !== -1) {
             // Replace temp message with real one, set status to delivered/seen
             const updated = [...prev];
@@ -174,9 +171,14 @@ export default function ChatBox({
         prev.map((msg) =>
           msg._id === messageId ? { ...msg, status: "delivered" } : msg
         )
-        
       );
       if (refetch) refetch();
+      // Emit last_message_update for delivered
+      socket.emit("last_message_update", {
+        chatId,
+        lastMessageId: messageId,
+        status: "delivered"
+      });
     }
 
     // When message is seen (double blue tick)
@@ -201,6 +203,12 @@ export default function ChatBox({
         return updated;
       });
       if (refetch) refetch();
+      // Emit last_message_update for seen
+      socket.emit("last_message_update", {
+        chatId,
+        lastMessageId: messageId,
+        status: "seen"
+      });
     }
 
     socket.on("newMessage", handleNewMessage);
@@ -245,22 +253,30 @@ export default function ChatBox({
   }, [localMessages, messages, chatId, userId, roomUsers]);
 
   // 5. Combine messages for display (avoid duplicates)
+  // Only show messages for the current chatId
   const allMessages = [
-    ...messages.map((msg) => {
+    ...messages.filter((msg) => (msg.chatId || msg.chat) === chatId).map((msg) => {
       // If there's a local version of this message, use it (it may have updated status)
       const local = localMessages.find((lm) => lm._id.toString() === msg._id.toString());
       return local ? { ...msg, ...local } : msg;
     }),
     // Add any local messages that aren't in messages yet (e.g., pending/outgoing)
-    ...localMessages.filter((lm) => !messages.some((m) => m._id.toString() === lm._id.toString())),
+    ...localMessages.filter(
+      (lm) =>
+        !messages.some((m) => m._id.toString() === lm._id.toString()) &&
+        (lm.chatId || lm.chat) === chatId
+    ),
   ];
+
+  // Debug log
+  console.log('[DEBUG] ChatBox chatId:', chatId, 'allMessages:', allMessages);
 
   function renderStatus(msg: any) {
     console.log("[DEBUG] Rendering status for", msg._id, ":", msg.status, msg.seen);
-    if (msg.status === "pending") return <span style={{ color: "#bdbdbd" }}>pending</span>;
-    if (msg.seen || msg.status === "seen") return <span style={{ color: "#1976d2" }}>seen</span>;
-    if (msg.status === "delivered") return <span style={{ color: "gray" }}>delivered</span>;
-    if (msg.status === "sent") return <span style={{ color: "gray" }}>sent</span>;
+    if (msg?.status === "pending") return <span style={{ color: "#bdbdbd" }}>pending</span>;
+    if (msg?.seen || msg.status === "seen") return <span style={{ color: "#1976d2" }}>seen</span>;
+    if (msg?.status === "delivered") return <span style={{ color: "gray" }}>dev</span>;
+    if (msg?.status === "sent") return <span style={{ color: "gray" }}>sent</span>;
     return null;
   }
 

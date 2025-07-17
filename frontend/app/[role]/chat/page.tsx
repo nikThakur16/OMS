@@ -14,7 +14,7 @@ import { useAppSelector } from "@/store/hooks";
 import NoConversation from "@/components/chat/NoConversation";
 import UserInfo from "@/components/chat/UserInfo";
 import { formatTime } from "@/utils/time/Time&Date";
-
+import React from "react";
 
 
 
@@ -23,6 +23,22 @@ export default function ChatPage() {
   // Removed console.log
 
   const { data: users = [], refetch: refetchDirectory, error: userDirectoryError } = useGetChatUserDirectoryQuery();
+  // Extend Message type to include _id for lastMessage real-time updates
+  interface MessageWithId {
+    _id?: string;
+    content?: string;
+    sender?: any;
+    chatId?: string;
+    createdAt?: string;
+    status?: string;
+    seen?: boolean;
+    seenBy?: any[];
+  }
+  const [userList, setUserList] = useState(users as Array<{ lastMessage?: MessageWithId } & typeof users[0]>);
+
+  useEffect(() => {
+    setUserList(users);
+  }, [users]);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const [chatId, setChatId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -54,17 +70,62 @@ export default function ChatPage() {
 
   // Listen for new messages and update both messages and last message preview
   useEffect(() => {
-    function handleNewMessage(message:any) {
-      if (message?.chatId === chatId) {
-        refetch(); // This will reload messages from the backend
+    function handleNewMessage(message: any) {
+      let found = false;
+      setUserList(prev => {
+        const idx = prev.findIndex(u => u.lastMessage && (u.lastMessage.chatId || u.lastMessage.chat) === (message.chatId || message.chat));
+        if (idx === -1) {
+          found = false;
+          return prev;
+        }
+        found = true;
+        const updatedUser = {
+          ...prev[idx],
+          lastMessage: {
+            _id: message._id,
+            content: message.content,
+            sender: message.sender,
+            chatId: message.chatId,
+            createdAt: message.createdAt,
+            status: message.status,
+            seen: message.seen,
+            seenBy: message.seenBy || [],
+          }
+        };
+        const newList = [updatedUser, ...prev.filter((_, i) => i !== idx)];
+        return newList.sort((a, b) => {
+          const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+          const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+          return bTime - aTime;
+        });
+      });
+      // If not found in userList, refetch the directory to update the chat list
+      if (!found) {
+        refetchDirectory();
       }
-      refetchDirectory();
+      // Only refetch messages if the message is for the currently open chat
+      if ((message.chatId || message.chat) === chatId) {
+        refetch();
+      }
     }
     socket.on("newMessage", handleNewMessage);
+
+    function handleLastMessageUpdate({ lastMessageId, status }: any) {
+      setUserList(prev =>
+        prev.map(u =>
+          u.lastMessage && u.lastMessage._id === lastMessageId
+            ? { ...u, lastMessage: { ...u.lastMessage, status } }
+            : u
+        )
+      );
+    }
+    socket.on("last_message_update", handleLastMessageUpdate);
+
     return () => {
       socket.off("newMessage", handleNewMessage);
+      socket.off("last_message_update", handleLastMessageUpdate);
     };
-  }, [chatId, refetch, refetchDirectory]);
+  }, [chatId]); // Only include chatId as dependency
 
   useEffect(() => {
     if (!user?.id) return;
@@ -170,7 +231,7 @@ export default function ChatPage() {
         </div>
 
         <div className="  px-1.5 py-3 m-0 mb-2 flex flex-col gap-4 ">
-          {users
+          {userList
             .filter((u) => u._id !== (user?.id || user?._id))
             .filter((friend) => {
               const fullName =
@@ -189,41 +250,43 @@ export default function ChatPage() {
               const isMe = senderId === (user?.id || user?._id);
               // WhatsApp-like logic: use only status/seen, not online status
               return (
-                <div
-                  className="hover:bg-gray-200 flex items-center justify-between gap-4 px-2 py-3 rounded-lg cursor-pointer shadow-[0_4px_8px_0_rgba(0,0,0,0.1)]"
-                  key={friend._id}
-                  onClick={() => setSelectedFriend(friend)}
-                >
-                  <div className="flex items-center gap-4">
-                    <img width={35} height={35} className="rounded-full" src="/images/cat.jpg" alt="" />
-                    <div className="flex flex-col">
-                      <span className="font-semibold tracking-wider">
-                        {friend.personalDetails.firstName} {friend.personalDetails.lastName}
-                      </span>
-                      <span className="text-gray-700 font-medium flex items-center">
-                        {lastMessage?.content ? (
-                          <>
-                            {isMe && (
-                              lastMessage.seen || lastMessage.status === "seen" ? (
-                                <span className="text-blue-500 mr-1">seen</span>
-                              ) : lastMessage.status === "delivered" ? (
-                                <span className="text-gray-500 mr-1">delivered</span>
-                              ) : (
-                                <span className="text-gray-500 mr-1">sent</span>
-                              )
-                            )}
-                            {lastMessage?.content}
-                          </>
-                        ) : (
-                          "No messages yet"
-                        )}
-                      </span>
+                <React.Fragment key={friend._id}>
+                  <div
+                    className={`hover:bg-gray-200 flex items-center justify-between gap-4 px-2 py-4 rounded-lg cursor-pointer shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] ${selectedFriend?._id === friend._id ? 'bg-blue-100' : ''}`}
+                    onClick={() => setSelectedFriend(friend)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <img width={35} height={35} className="rounded-full" src="/images/cat.jpg" alt="" />
+                      <div className="flex flex-col">
+                        <span className="font-semibold tracking-wider">
+                          {friend.personalDetails.firstName} {friend.personalDetails.lastName}
+                        </span>
+                        <span className="text-gray-700 font-medium flex items-center">
+                          {lastMessage?.content ? (
+                            <>
+                              {isMe && (
+                                lastMessage.seen || lastMessage.status === "seen" ? (
+                                  <span className="text-blue-500 mr-1">seen</span>
+                                ) : lastMessage.status === "delivered" ? (
+                                  <span className="text-gray-500 mr-1">delivered</span>
+                                ) : (
+                                  <span className="text-gray-500 mr-1">sent</span>
+                                )
+                              )}
+                              {lastMessage?.content}
+                            </>
+                          ) : (
+                            "No messages yet"
+                          )}
+                        </span>
+                      </div>
                     </div>
+                    <span className="font-semibold text-sm text-gray-600">
+                      {lastMessage ? formatTime(lastMessage?.createdAt): ""}
+                    </span>
                   </div>
-                  <span className="font-semibold text-sm text-gray-600">
-                    {lastMessage ? formatTime(lastMessage?.createdAt): ""}
-                  </span>
-                </div>
+                
+                </React.Fragment>
               );
             })}
         </div>

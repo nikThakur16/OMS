@@ -68,6 +68,7 @@ exports.getAllChatUsers = async (req, res) => {
           ...user,
           lastMessage: lastMessage
             ? {
+                _id: lastMessage._id, // Add this line
                 content: lastMessage.content,
                 sender: {
                   _id: lastMessage.sender._id,
@@ -75,6 +76,8 @@ exports.getAllChatUsers = async (req, res) => {
                   lastName: lastMessage.sender.personalDetails.lastName,
                 },
                 createdAt: lastMessage.createdAt,
+                status: lastMessage.status, // Add status for clarity
+                seen: lastMessage.seen, // Add seen for clarity
                 seenBy: lastMessage.seenBy || [], // Add this if you want to show seen status
               }
             : null,
