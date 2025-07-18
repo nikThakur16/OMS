@@ -12,6 +12,8 @@ router.post("/one-to-one", chatController.getOrCreateOneToOneChat);
 // Get all messages for a chat
 router.get("/:chatId/messages", chatController.getMessages);
 
+router.post("/:chatId/seen", chatController.markChatAsSeen);
+
 router.get("/", chatController.getAllChatUsers );
 
 module.exports = router;

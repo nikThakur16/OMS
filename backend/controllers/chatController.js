@@ -64,6 +64,14 @@ exports.getAllChatUsers = async (req, res) => {
             .lean();
         }
 
+        let unreadCount = 0;
+        if (chat) {
+          unreadCount = await Message.countDocuments({
+            chat: chat._id,
+            sender: { $ne: currentUserId }, // not sent by me
+            seenBy: { $ne: currentUserId }  // I haven't seen it
+          });
+        }
         return {
           ...user,
           lastMessage: lastMessage
@@ -81,6 +89,7 @@ exports.getAllChatUsers = async (req, res) => {
                 seenBy: lastMessage.seenBy || [], // Add this if you want to show seen status
               }
             : null,
+          unreadCount, // <-- ADD THIS
         };
       })
     );
@@ -89,5 +98,24 @@ exports.getAllChatUsers = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch user directory" });
+  }
+};
+
+// Mark all as seen
+exports.markChatAsSeen = async (req, res) => {
+  const { chatId } = req.params;
+  const userId = req.user._id;
+  try {
+    await Message.updateMany(
+      {
+        chat: chatId,
+        sender: { $ne: userId }, // only messages not sent by me
+        seenBy: { $ne: userId }
+      },
+      { $addToSet: { seenBy: userId }, status: "seen" }
+    );
+    res.sendStatus(200);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to mark messages as seen" });
   }
 };

@@ -8,6 +8,7 @@ import {
   useGetOrCreateOneToOneChatMutation,
   useGetChatUserDirectoryQuery,
   useGetChatMessagesQuery,
+  useMarkChatAsSeenMutation,
 } from "@/store/api";
 import ChatBox from "@/components/chat/ChatBox";
 import { useAppSelector } from "@/store/hooks";
@@ -34,7 +35,9 @@ export default function ChatPage() {
     seen?: boolean;
     seenBy?: any[];
   }
-  const [userList, setUserList] = useState(users as Array<{ lastMessage?: MessageWithId } & typeof users[0]>);
+  // Fix: Extend User type to include unreadCount
+  type UserWithUnread = typeof users[0] & { unreadCount?: number; lastMessage?: MessageWithId };
+  const [userList, setUserList] = useState<UserWithUnread[]>(users as UserWithUnread[]);
 
   useEffect(() => {
     setUserList(users);
@@ -48,6 +51,9 @@ export default function ChatPage() {
   const [showUserInfo, setShowUserInfo] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   // Removed console.log
+
+  const [markChatAsSeen] = useMarkChatAsSeenMutation();
+  const [prevChatId, setPrevChatId] = useState<string>("");
 
   useEffect(() => {
     if (!selectedFriend || !(user?.id || user?._id)) return;
@@ -67,6 +73,13 @@ export default function ChatPage() {
       refetch();
     }
   }, [chatId, refetch]);
+
+  useEffect(() => {
+    if (chatId && user?.id) {
+      markChatAsSeen(chatId);
+      refetchDirectory(); // unread count will become zero
+    }
+  }, [chatId, user?.id, markChatAsSeen, refetchDirectory]);
 
   // Listen for new messages and update both messages and last message preview
   useEffect(() => {
@@ -118,12 +131,19 @@ export default function ChatPage() {
             : u
         )
       );
+      refetchDirectory(); // <-- Add this line
     }
     socket.on("last_message_update", handleLastMessageUpdate);
+
+    function handleMessageSeen({ messageId, userId }: any) {
+      refetchDirectory(); // Update user list and chat status in real time
+    }
+    socket.on("message_seen", handleMessageSeen);
 
     return () => {
       socket.off("newMessage", handleNewMessage);
       socket.off("last_message_update", handleLastMessageUpdate);
+      socket.off("message_seen", handleMessageSeen);
     };
   }, [chatId]); // Only include chatId as dependency
 
@@ -160,6 +180,23 @@ export default function ChatPage() {
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    if (chatId) {
+      if (prevChatId && prevChatId !== chatId) {
+        socket.emit("leave_chat", prevChatId, user.id);
+      }
+      socket.emit("join_chat", chatId, user.id);
+      setPrevChatId(chatId);
+    }
+    // Clean up on unmount
+    return () => {
+      if (chatId) {
+        socket.emit("leave_chat", chatId, user.id);
+      }
+    };
+  }, [chatId, user?.id]);
+
   // Add error display for user directory and messages
   if (userDirectoryError) {
     return <div>Error loading user directory.</div>;
@@ -174,7 +211,7 @@ export default function ChatPage() {
       }}
       className="flex w-full h-full  gap-2  "
     >
-      <div className="max-w-1/4 min-w-1/4  bg-white  rounded-md overflow-y-auto hide-scrollbar shadow-[4px_0_8px_0_rgba(0,0,0,0.1)]">
+      <div className="max-w-1/4 min-w-1/4 bg-white relative rounded-md shadow-[4px_0_8px_0_rgba(0,0,0,0.1)]" style={{ height: "100%" }}>
         <div
           onClick={(e) => {
             e.stopPropagation();
@@ -205,7 +242,7 @@ export default function ChatPage() {
               ${showSearch ? "translate-x-0" : "translate-x-full"}
               bg-white
             `}
-            style={{ zIndex: 10 }}
+      
           >
             <input
               type="search"
@@ -230,7 +267,10 @@ export default function ChatPage() {
           </div>
         </div>
 
-        <div className="  px-1.5 py-3 m-0 mb-2 flex flex-col gap-4 ">
+        <div
+          className="px-1.5 py-3 m-0 mb-2 flex flex-col gap-4 overflow-y-auto hide-scrollbar"
+          style={{ height: "calc(100% - 143px)" }} // 100px is the height of the red bar
+        >
           {userList
             .filter((u) => u._id !== (user?.id || user?._id))
             .filter((friend) => {
@@ -248,11 +288,24 @@ export default function ChatPage() {
               const lastMessage = friend?.lastMessage as any;
               const senderId = typeof lastMessage?.sender === 'string' ? lastMessage?.sender : lastMessage?.sender?._id;
               const isMe = senderId === (user?.id || user?._id);
-              // WhatsApp-like logic: use only status/seen, not online status
+
+              // --- NEW: Calculate unread count ---
+              // If you have unreadCount from backend, use that. Otherwise, fallback to 1 if lastMessage is not seen and not sent by me.
+              const unreadCount =
+                typeof friend.unreadCount === "number"
+                  ? friend.unreadCount
+                  : (!isMe && !lastMessage.seen ? 1 : 0);
+
+              // --- NEW: Highlight if unread ---
+              const isUnread = unreadCount > 0;
+
               return (
                 <React.Fragment key={friend._id}>
                   <div
-                    className={`hover:bg-gray-200 flex items-center justify-between gap-4 px-2 py-4 rounded-lg cursor-pointer shadow-[0_4px_8px_0_rgba(0,0,0,0.1)] ${selectedFriend?._id === friend._id ? 'bg-blue-100' : ''}`}
+                    className={`hover:bg-gray-200 flex items-center justify-between gap-4 px-2 py-4 rounded-lg cursor-pointer shadow-[0_4px_8px_0_rgba(0,0,0,0.1)]
+                      ${selectedFriend?._id === friend._id ? 'bg-blue-100' : ''}
+                      ${isUnread ? 'bg-blue-50 font-bold' : ''}
+                    `}
                     onClick={() => setSelectedFriend(friend)}
                   >
                     <div className="flex items-center gap-4">
@@ -281,16 +334,29 @@ export default function ChatPage() {
                         </span>
                       </div>
                     </div>
-                    <span className="font-semibold text-sm text-gray-600">
-                      {lastMessage ? formatTime(lastMessage?.createdAt): ""}
-                    </span>
+                    <div className="flex flex-col items-end">
+                      <span className="font-semibold text-sm text-gray-600">
+                        {lastMessage ? formatTime(lastMessage?.createdAt): ""}
+                      </span>
+                      {/* --- NEW: Unread badge --- */}
+                      {isUnread && (
+                        <span className="mt-1 inline-block min-w-[20px] px-2 py-0.5 text-xs text-white bg-blue-500 rounded-full text-center">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 
                 </React.Fragment>
               );
             })}
+           
+        </div>
+        <div className="absolute bottom-0 left-0 w-full h-[100px] bg-red-100 flex items-center justify-center z-10">
+          dafwfwe
         </div>
       </div>
+     
       <div
         className={`${
           showUserInfo ? "w-1/2" : "w-3/4"

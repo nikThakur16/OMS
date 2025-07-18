@@ -139,6 +139,8 @@ io.on("connection", (socket) => {
       const usersInRoom = chatRoomUsers.get(data.chatId) || new Set();
       const bothInRoom = usersInRoom.has(data.sender) && usersInRoom.has(recipientId.toString());
 
+      // If both are in the chat room, mark as seen
+      const status = bothInRoom ? "seen" : "delivered";
       // Emit to sender: status "sent"
       io.to(socket.id).emit("newMessage", {
         ...data,
@@ -150,8 +152,6 @@ io.on("connection", (socket) => {
       });
 
       if (onlineUsers.has(recipientId.toString())) {
-        // If both are in the chat room, mark as seen
-        const status = bothInRoom ? "seen" : "delivered";
         // Emit to the chat room (for open chat windows)
         io.to(data.chatId).emit("newMessage", {
           ...data,
@@ -177,7 +177,14 @@ io.on("connection", (socket) => {
           { messageId: message._id, userId: recipientId.toString() }
         );
         // Persist status in the database
-        await Message.findByIdAndUpdate(message._id, { status });
+        if (bothInRoom) {
+          await Message.findByIdAndUpdate(message._id, {
+            status: "seen",
+            $addToSet: { seenBy: recipientId }
+          });
+        } else {
+          await Message.findByIdAndUpdate(message._id, { status: "delivered" });
+        }
         // Emit last message status update in real time
         io.to(data.chatId).emit("last_message_update", {
           chatId: data.chatId,
@@ -193,11 +200,14 @@ io.on("connection", (socket) => {
 
   // When a message is seen
   socket.on("message_seen", async ({ chatId, messageId, userId }) => {
-    // 1. Update the message in the database to mark as seen
-    await Message.findByIdAndUpdate(messageId, { status: "seen", seen: true });
-
-    // 2. Notify all clients in the chat room
+    await Message.findByIdAndUpdate(messageId, { status: "seen", seen: true, $addToSet: { seenBy: userId } });
     io.to(chatId).emit("message_seen", { messageId, userId });
+    // Emit last_message_update for chat list
+    io.to(chatId).emit("last_message_update", {
+      chatId,
+      lastMessageId: messageId,
+      status: "seen"
+    });
   });
 
   // Listen for last_message_update from client and broadcast to chat room
