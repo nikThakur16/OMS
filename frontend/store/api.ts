@@ -384,6 +384,13 @@ export const api = createApi({
       query: (chatId) => `api/chats/${chatId}/messages`,
       providesTags: (result, error, chatId) => [{ type: "ChatMessages", id: chatId }],
     }),
+
+    markChatAsSeen: builder.mutation({
+      query: (chatId) => ({
+        url: `/api/chats/${chatId}/seen`,
+        method: "POST",
+      }),
+    }),
   }),
 });
 
@@ -428,4 +435,5 @@ export const {
   useGetOrCreateOneToOneChatMutation,
   useGetChatMessagesQuery,
   useGetChatUserDirectoryQuery,
+  useMarkChatAsSeenMutation,
 } = api;

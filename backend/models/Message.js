@@ -6,6 +6,7 @@ const messageSchema = new mongoose.Schema({
   content: { type: String, required: true },
   status: { type: String, enum: ['sent', 'delivered', 'seen'], default: 'sent' },
   seen: { type: Boolean, default: false },
+  seenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
 
 messageSchema.index({ chat: 1 });
